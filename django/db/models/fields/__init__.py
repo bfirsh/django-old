@@ -406,6 +406,11 @@ class BooleanField(Field):
         return super(BooleanField, self).formfield(**defaults)
 
 class CharField(Field):
+    def __init__(self, verbose_name=None, name=None, search_index=False, search_weight=0.1, **kwargs):
+        self.search_index = search_index
+        self.search_weight = search_weight
+        Field.__init__(self, verbose_name, name, **kwargs)
+    
     def get_internal_type(self):
         return "CharField"
 
@@ -797,6 +802,11 @@ class SmallIntegerField(IntegerField):
         return "SmallIntegerField"
 
 class TextField(Field):
+    def __init__(self, verbose_name=None, name=None, search_index=False, search_weight=0.1, **kwargs):
+        self.search_index = search_index
+        self.search_weight = search_weight
+        Field.__init__(self, verbose_name, name, **kwargs)
+    
     def get_internal_type(self):
         return "TextField"
 

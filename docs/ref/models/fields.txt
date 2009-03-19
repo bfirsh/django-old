@@ -336,6 +336,14 @@ The admin represents this as an ``<input type="text">`` (a single-line input).
     The maximum length (in characters) of the field. The max_length is enforced
     at the database level and in Django's validation.
 
+It also has one optional argument:
+
+.. attribute:: CharField.search_index
+
+    If ``True``, djadmin:`django-admin.py sqlindexes <sqlindexes>` will output a 
+    full-text index for this field, and the ``search()`` method and ``search`` 
+    field lookup on this model's ``QuerySet`` will search this field.
+
 .. note::
 
     If you are writing an application that must be portable to multiple
@@ -692,7 +700,11 @@ Like an :class:`IntegerField`, but only allows values under a certain
 .. class:: TextField([**options])
 
 A large text field. The admin represents this as a ``<textarea>`` (a multi-line
-input).
+input). Has one optional argument:
+
+.. attribute:: TextField.search_index
+
+    See :attr:`~CharField.search_index`.
 
 .. admonition:: MySQL users
 

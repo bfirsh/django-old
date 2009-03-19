@@ -27,6 +27,7 @@ class Options(object):
     def __init__(self, meta, app_label=None):
         self.local_fields, self.local_many_to_many = [], []
         self.virtual_fields = []
+        self.search_fields = []
         self.module_name, self.verbose_name = None, None
         self.verbose_name_plural = None
         self.db_table = ''
@@ -156,6 +157,8 @@ class Options(object):
             if hasattr(self, '_field_cache'):
                 del self._field_cache
                 del self._field_name_cache
+            if hasattr(field, 'search_index') and field.search_index:
+                self.search_fields.insert(bisect(self.search_fields, field), field)
 
         if hasattr(self, '_name_map'):
             del self._name_map
@@ -476,7 +479,7 @@ class Options(object):
             #        objects.append(opts)
             self._ordered_objects = objects
         return self._ordered_objects
-
+    
     def pk_index(self):
         """
         Returns the index of the primary key field in the self.fields list.

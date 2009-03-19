@@ -1,5 +1,6 @@
 import re
 
+from django.conf import settings
 from django.db.backends import BaseDatabaseOperations
 
 server_version_re = re.compile(r'PostgreSQL (\d{1,2})\.(\d{1,2})\.?(\d{1,2})?')
@@ -160,3 +161,35 @@ class DatabaseOperations(BaseDatabaseOperations):
         if aggregate.sql_function == 'STDDEV_POP' or aggregate.sql_function == 'VAR_POP':
             if self.postgres_version[0] == 8 and self.postgres_version[1] == 2 and self.postgres_version[2] <= 4:
                 raise NotImplementedError('PostgreSQL 8.2 to 8.2.4 is known to have a faulty implementation of %s. Please upgrade your version of PostgreSQL.' % aggregate.sql_function)
+    
+    def _fulltext_tsvector_sql(self, fields, table=None):
+        qn = self.quote_name
+        if table is None:
+            s = '%s'
+        else:
+            s = '%s.%%s' % qn(table)
+        if len(fields) > 1:
+            s = "coalesce(%s, '')" % s
+        fields = [s % qn(f.column) for f in fields]
+        # search_language does not work with qn() - it adds double quotes
+        return "to_tsvector('%s', %s)" % \
+            (settings.DATABASE_OPTIONS.get('search_language', 'english'),
+             ' || '.join(fields))
+        
+    def fulltext_search_sql(self, fields, table=None):
+        return 'to_tsquery(%%s) @@ %s' % self._fulltext_tsvector_sql(fields, table)
+    
+    def fulltext_relevance_sql(self, fields, table=None):
+        return 'ts_rank(%s, to_tsquery(%%s), 32)' \
+                    % self._fulltext_tsvector_sql(fields, table)
+                    
+    def fulltext_prepare_queries(self, queries):
+        """
+        Given a list of search queries, returns a single query string.
+        
+        This is primarily for joining the queries using AND statements, but 
+        could also be used for processing the query itself.
+        """
+        # TODO: this should be better
+        return ' & '.join([' & '.join(q.split()) for q in queries])
+        

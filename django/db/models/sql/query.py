@@ -76,6 +76,7 @@ class BaseQuery(object):
         self.distinct = False
         self.select_related = False
         self.related_select_cols = []
+        self.search_queries = []
 
         # SQL aggregate-related attributes
         self.aggregates = SortedDict() # Maps alias -> SQL aggregate function
@@ -212,6 +213,7 @@ class BaseQuery(object):
         obj.extra_params = self.extra_params
         obj.extra_order_by = self.extra_order_by
         obj.deferred_loading = deepcopy(self.deferred_loading)
+        obj.search_queries = self.search_queries
         if self.filter_is_sticky and self.used_aliases:
             obj.used_aliases = self.used_aliases.copy()
         else:
@@ -273,7 +275,10 @@ class BaseQuery(object):
                     row = self.resolve_columns(row, fields)
 
                 if self.aggregate_select:
-                    aggregate_start = len(self.extra_select.keys()) + len(self.select)
+                    search_count = 0
+                    if self.search_queries:
+                        search_count = 1
+                    aggregate_start = search_count + len(self.extra_select.keys()) + len(self.select)
                     aggregate_end = aggregate_start + len(self.aggregate_select)
                     row = tuple(row[:aggregate_start]) + tuple([
                         self.resolve_aggregate(value, aggregate)
@@ -312,6 +317,7 @@ class BaseQuery(object):
             self.select = []
             self.default_cols = False
             self.extra_select = {}
+            self.search_queries = []
             self.remove_inherited_models()
 
         query.clear_ordering(True)
@@ -335,7 +341,7 @@ class BaseQuery(object):
         Performs a COUNT() query using the current filter constraints.
         """
         obj = self.clone()
-        if len(self.select) > 1 or self.aggregate_select:
+        if len(self.select) > 1 or self.aggregate_select or self.search_queries:
             # If a select clause exists, then the query has already started to
             # specify the columns that are to be returned.
             # In this case, we need to use a subquery to evaluate the count.
@@ -381,6 +387,9 @@ class BaseQuery(object):
         params = []
         for val in self.extra_select.itervalues():
             params.extend(val[1])
+        if self.search_queries:
+            params.append(self.connection.ops.fulltext_prepare_queries(
+                            self.search_queries))
 
         result = ['SELECT']
         if self.distinct:
@@ -394,12 +403,21 @@ class BaseQuery(object):
         if where:
             result.append('WHERE %s' % where)
             params.extend(w_params)
-        if self.extra_where:
+        
+        extra_where = []
+        if self.search_queries:
+            extra_where.append(self.connection.ops.fulltext_search_sql(
+                            self.model._meta.search_fields, 
+                            self.model._meta.db_table))
+            params.append(self.connection.ops.fulltext_prepare_queries(
+                            self.search_queries))
+        extra_where += self.extra_where
+        if extra_where:
             if not where:
                 result.append('WHERE')
             else:
                 result.append('AND')
-            result.append(' AND '.join(self.extra_where))
+            result.append(' AND '.join(extra_where))
 
         grouping, gb_params = self.get_grouping()
         if grouping:
@@ -532,10 +550,14 @@ class BaseQuery(object):
             if self.extra_where and rhs.extra_where:
                 raise ValueError("When merging querysets using 'or', you "
                         "cannot have extra(where=...) on both sides.")
+            if self.search_queries and rhs.search_queries:
+                raise ValueError("When merging querysets using 'or', you "
+                        "cannot have search(...) on both sides.")
         self.extra_select.update(rhs.extra_select)
         self.extra_tables += rhs.extra_tables
         self.extra_where += rhs.extra_where
         self.extra_params += rhs.extra_params
+        self.search_queries += rhs.search_queries
 
         # Ordering uses the 'rhs' ordering, unless it has none, in which case
         # the current ordering is used.
@@ -662,6 +684,13 @@ class BaseQuery(object):
         qn2 = self.connection.ops.quote_name
         result = ['(%s) AS %s' % (col[0], qn2(alias)) for alias, col in self.extra_select.iteritems()]
         aliases = set(self.extra_select.keys())
+        if self.search_queries:
+            result.append('(%s) AS %s' % 
+                (self.connection.ops.fulltext_relevance_sql(
+                        self.model._meta.search_fields,
+                        self.model._meta.db_table),
+                 qn2('search__relevance')))
+            aliases.add('search__relevance')
         if with_aliases:
             col_aliases = aliases.copy()
         else:
@@ -903,7 +932,7 @@ class BaseQuery(object):
                 group_by.append((field, []))
                 continue
             col, order = get_order_dir(field, asc)
-            if col in self.aggregate_select:
+            if col == 'search__relevance' or col in self.aggregate_select:
                 result.append('%s %s' % (col, order))
                 continue
             if '.' in field:
@@ -2198,7 +2227,7 @@ class BaseQuery(object):
         Removes any aliases in the extra_select dictionary that aren't in
         'names'.
 
-        This is needed if we are selecting certain values that don't incldue
+        This is needed if we are selecting certain values that don't include
         all of the extra_select names.
         """
         for key in set(self.extra_select).difference(set(names)):

@@ -166,6 +166,9 @@ class Manager(object):
 
     def reverse(self, *args, **kwargs):
         return self.get_query_set().reverse(*args, **kwargs)
+    
+    def search(self, *args, **kwargs):
+        return self.get_query_set().search(*args, **kwargs)
 
     def defer(self, *args, **kwargs):
         return self.get_query_set().defer(*args, **kwargs)

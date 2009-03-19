@@ -864,6 +864,12 @@ logically::
     # existing set of fields).
     Entry.objects.defer("body").only("headline", "body")
 
+``search(query)``
+~~~~~~~~~~~~~~~~~
+
+Returns a ``QuerySet`` containing objects that match a given search query. The search is performed across all fields that have the ``search_index`` option enabled.
+
+The ``query`` argument is required, and specifies the query string to run the search against. The format depends on which backend you are using.
 
 QuerySet methods that do not return QuerySets
 ---------------------------------------------
@@ -1479,7 +1485,7 @@ SQL equivalent::
 search
 ~~~~~~
 
-A boolean full-text search, taking advantage of full-text indexing. This is
+A full-text search, taking advantage of full-text indexing. This is
 like ``contains`` but is significantly faster due to full-text indexing.
 
 Note this is only available in MySQL and requires direct manipulation of the
