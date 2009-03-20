@@ -64,3 +64,10 @@ class DatabaseCreation(BaseDatabaseCreation):
             ]
         return table_output, deferred
         
+    def sql_for_fulltext_index(self, model, fields, style):
+        qn = self.connection.ops.quote_name
+        return (style.SQL_KEYWORD('CREATE FULLTEXT INDEX') + ' ' +
+            style.SQL_TABLE(qn(self._fulltext_index_name(model, fields))) + ' ' +
+            style.SQL_KEYWORD('ON') + ' ' +
+            style.SQL_TABLE(qn(model._meta.db_table)) + ' ' +
+            "(%s);" % style.SQL_FIELD(qn(", ".join([f.column for f in fields]))))

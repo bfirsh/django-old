@@ -162,7 +162,7 @@ class DatabaseOperations(BaseDatabaseOperations):
             if self.postgres_version[0] == 8 and self.postgres_version[1] == 2 and self.postgres_version[2] <= 4:
                 raise NotImplementedError('PostgreSQL 8.2 to 8.2.4 is known to have a faulty implementation of %s. Please upgrade your version of PostgreSQL.' % aggregate.sql_function)
     
-    def _fulltext_tsvector_sql(self, fields, table=None):
+    def fulltext_tsvector_sql(self, fields, table=None):
         qn = self.quote_name
         if table is None:
             s = '%s'
@@ -177,11 +177,11 @@ class DatabaseOperations(BaseDatabaseOperations):
              ' || '.join(fields))
         
     def fulltext_search_sql(self, fields, table=None):
-        return 'to_tsquery(%%s) @@ %s' % self._fulltext_tsvector_sql(fields, table)
+        return 'to_tsquery(%%s) @@ %s' % self.fulltext_tsvector_sql(fields, table)
     
     def fulltext_relevance_sql(self, fields, table=None):
         return 'ts_rank(%s, to_tsquery(%%s), 32)' \
-                    % self._fulltext_tsvector_sql(fields, table)
+                    % self.fulltext_tsvector_sql(fields, table)
                     
     def fulltext_prepare_queries(self, queries):
         """

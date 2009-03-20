@@ -34,3 +34,12 @@ class DatabaseCreation(BaseDatabaseCreation):
         if settings.TEST_DATABASE_CHARSET:
             return "WITH ENCODING '%s'" % settings.TEST_DATABASE_CHARSET
         return ''
+        
+    def sql_for_fulltext_index(self, model, fields, style):
+        qn = self.connection.ops.quote_name
+        return (style.SQL_KEYWORD('CREATE INDEX') + ' ' +
+            style.SQL_TABLE(qn(self._fulltext_index_name(model, fields))) + ' ' +
+            style.SQL_KEYWORD('ON') + ' ' +
+            style.SQL_TABLE(qn(model._meta.db_table)) + ' ' +
+            style.SQL_KEYWORD('USING') + ' ' +
+            'gin(%s);' % self.connection.ops.fulltext_tsvector_sql(fields))

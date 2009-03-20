@@ -226,18 +226,34 @@ class BaseDatabaseCreation(object):
         deferred = []
 
         return table_output, deferred
-
+    
+    def _fulltext_index_name(self, model, fields):
+        if len(fields) > 1:
+            return '%s_search' % model._meta.db_table
+        else:
+            return '%s_%s_search' % (model._meta.db_table, fields[0].column)
+    
+    def sql_for_fulltext_index(self, model, fields, style):
+        "Returns the full text index for a list of fields"
+        raise NotImplementedError
+    
     def sql_indexes_for_model(self, model, style):
         "Returns the CREATE INDEX SQL statements for a single model"
         if not model._meta.managed:
             return []
         output = []
+        if len(model._meta.search_fields) > 1:
+            try:
+                output.append(self.sql_for_fulltext_index(model, model._meta.search_fields, style))
+            except NotImplementedError:
+                pass # Raise informative error?
         for f in model._meta.local_fields:
             output.extend(self.sql_indexes_for_field(model, f, style))
         return output
 
     def sql_indexes_for_field(self, model, f, style):
         "Return the CREATE INDEX SQL statements for a single model field"
+        output = []
         if f.db_index and not f.unique:
             qn = self.connection.ops.quote_name
             tablespace = f.db_tablespace or model._meta.db_tablespace
@@ -249,14 +265,17 @@ class BaseDatabaseCreation(object):
                     tablespace_sql = ''
             else:
                 tablespace_sql = ''
-            output = [style.SQL_KEYWORD('CREATE INDEX') + ' ' +
+            output.append(style.SQL_KEYWORD('CREATE INDEX') + ' ' +
                 style.SQL_TABLE(qn('%s_%s' % (model._meta.db_table, f.column))) + ' ' +
                 style.SQL_KEYWORD('ON') + ' ' +
                 style.SQL_TABLE(qn(model._meta.db_table)) + ' ' +
                 "(%s)" % style.SQL_FIELD(qn(f.column)) +
-                "%s;" % tablespace_sql]
-        else:
-            output = []
+                "%s;" % tablespace_sql)
+        if hasattr(f, 'search_index') and f.search_index:
+            try:
+                output.append(self.sql_for_fulltext_index(model, [f], style))
+            except NotImplementedError:
+                pass
         return output
 
     def sql_destroy_model(self, model, references_to_delete, style):
