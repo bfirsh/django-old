@@ -1,6 +1,7 @@
 import re
 
 from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
 from django.db.backends import BaseDatabaseOperations
 
 server_version_re = re.compile(r'PostgreSQL (\d{1,2})\.(\d{1,2})\.?(\d{1,2})?')
@@ -162,26 +163,57 @@ class DatabaseOperations(BaseDatabaseOperations):
             if self.postgres_version[0] == 8 and self.postgres_version[1] == 2 and self.postgres_version[2] <= 4:
                 raise NotImplementedError('PostgreSQL 8.2 to 8.2.4 is known to have a faulty implementation of %s. Please upgrade your version of PostgreSQL.' % aggregate.sql_function)
     
+    def _calculate_fulltext_weights(self, fields):
+        weights = []
+        for f in fields:
+            if f.search_weight not in weights:
+                weights.append(f.search_weight)
+        if len(weights) > 4:
+            raise ImproperlyConfigured('PostgreSQL only supports at most four different search weights on a model.')
+        if len(weights) < 4:
+            for w in [0.1, 0.2, 0.4, 1.0]:
+                if w not in weights:
+                    weights.append(w)
+                    if len(weights) == 4:
+                        break
+        weights.sort() # This puts smallest as D, the default
+        return weights
+        
+    def _fulltext_weights_to_letters(self, fields):
+        weights = self._calculate_fulltext_weights(fields)
+        return {weights[0]: 'D', weights[1]: 'C', weights[2]: 'B', weights[3]: 'A'}
+    
     def fulltext_tsvector_sql(self, fields, table=None):
         qn = self.quote_name
         if table is None:
-            s = '%s'
+            column_pattern = '%s'
         else:
-            s = '%s.%%s' % qn(table)
+            column_pattern = '%s.%%s' % qn(table)
+        # Single fields need no ranking
+        if len(fields) == 1:
+            tsvector_pattern = "to_tsvector('%(lang)s', %(col)s)"
+        else:
+            tsvector_pattern = "setweight(to_tsvector('%(lang)s', coalesce(%(col)s, '')), '%(rank)s')"
+        weights = self._fulltext_weights_to_letters(fields)
+        tsvector = ' || '.join([tsvector_pattern % {
+                'col': column_pattern % qn(f.column),
+                # search_language does not work with qn() - it adds double 
+                # quotes
+                'lang': settings.DATABASE_OPTIONS.get('search_language', 'english'),
+                'rank': weights[f.search_weight],
+            } for f in fields])
         if len(fields) > 1:
-            s = "coalesce(%s, '')" % s
-        fields = [s % qn(f.column) for f in fields]
-        # search_language does not work with qn() - it adds double quotes
-        return "to_tsvector('%s', %s)" % \
-            (settings.DATABASE_OPTIONS.get('search_language', 'english'),
-             ' || '.join(fields))
+            # The tsvectors joined with || need to be grouped
+            tsvector = '(%s)' % tsvector
+        return tsvector
         
     def fulltext_search_sql(self, fields, table=None):
         return 'to_tsquery(%%s) @@ %s' % self.fulltext_tsvector_sql(fields, table)
     
     def fulltext_relevance_sql(self, fields, table=None):
-        return 'ts_rank(%s, to_tsquery(%%s), 32)' \
-                    % self.fulltext_tsvector_sql(fields, table)
+        weights = self._calculate_fulltext_weights(fields)
+        return "ts_rank('{%.2f, %.2f, %.2f, %.2f}', %s, to_tsquery(%%s), 32)" \
+               % (tuple(weights) + (self.fulltext_tsvector_sql(fields, table),))
                     
     def fulltext_prepare_queries(self, queries):
         """
