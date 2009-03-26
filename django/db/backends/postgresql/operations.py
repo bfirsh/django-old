@@ -185,21 +185,25 @@ class DatabaseOperations(BaseDatabaseOperations):
     
     def fulltext_tsvector_sql(self, fields, table=None):
         qn = self.quote_name
+        lang = settings.DATABASE_OPTIONS.get('search_language', 'english')
+        tsvector_pattern = "to_tsvector('%(lang)s', %(col)s)"
+        # __search lookup, maybe needs a separate method?
+        if isinstance(fields, str):
+            return tsvector_pattern % {
+                'col': qn(fields),
+                'lang': lang,}
+        if len(fields) > 1:
+            tsvector_pattern = "setweight(to_tsvector('%(lang)s', coalesce(%(col)s, '')), '%(rank)s')"
         if table is None:
             column_pattern = '%s'
         else:
             column_pattern = '%s.%%s' % qn(table)
-        # Single fields need no ranking
-        if len(fields) == 1:
-            tsvector_pattern = "to_tsvector('%(lang)s', %(col)s)"
-        else:
-            tsvector_pattern = "setweight(to_tsvector('%(lang)s', coalesce(%(col)s, '')), '%(rank)s')"
         weights = self._fulltext_weights_to_letters(fields)
         tsvector = ' || '.join([tsvector_pattern % {
                 'col': column_pattern % qn(f.column),
                 # search_language does not work with qn() - it adds double 
                 # quotes
-                'lang': settings.DATABASE_OPTIONS.get('search_language', 'english'),
+                'lang': lang,
                 'rank': weights[f.search_weight],
             } for f in fields])
         if len(fields) > 1:
