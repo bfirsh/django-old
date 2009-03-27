@@ -1,0 +1,56 @@
+[
+    {
+        "pk": "1",
+        "model": "search.article",
+        "fields": {
+            "headline": "Django 1.1 beta released, wombat",
+            "pub_date": "2009-03-23 11:00:00",
+            "body": "As part of the Django 1.1 release process, tonight we've released Django 1.1 beta 1, a preview package that shows off the new features coming in Django 1.1. As with all alpha and beta packages, this is not for production use, but if you'd like to try out some of the new goodies coming in 1.1, or if you'd like to pitch in and help us fix bugs before the final 1.1 release (due in April), feel free to grab a copy and give it a spin. You can get a copy of the 1.1 beta package from our downloads page, and we recommend you read the release notes. Also, for the security conscious, signed MD5 and SHA1 checksums of the 1.1 beta package are available. Our next stop will be the 2009 US PyCon in Chicago where, among other things, we'll be running development sprints targeted at producing the final Django 1.1 release. For a full 1.1 roadmap, see the 1.1 alpha release notes."
+        }
+    },
+    {
+        "pk": "2",
+        "model": "search.article",
+        "fields": {
+            "headline": "Django 1.1 alpha 1 released",
+            "pub_date": "2009-02-23 11:00:00",
+            "body": "Wombat, wombat! As part of the Django 1.1 release process, tonight we've released Django 1.1 alpha 1, a preview/testing package that gives a little taste of some of the new features coming in Django 1.1. As with all alpha and beta packages, this is not for production use, but if you'd like to try out some of the new goodies coming in 1.1, or if you'd like to pitch in and help us fix bugs before the final 1.1 release (due in April), feel free to grab a copy and give it a spin. You can get a copy of the 1.1 alpha package from our downloads page, and we recommend you read the release notes. Also, for the security conscious, signed MD5 and SHA1 checksums of the 1.1 alpha package are available. Our next stop will be the 2009 US PyCon in Chicago where, among other things, we'll be running development sprints targeted at producing a feature-frozen 1.1 beta package (for a full 1.1 roadmap, see the 1.1 alpha release notes)."
+        }
+    },
+    {
+        "pk": "3",
+        "model": "search.article",
+        "fields": {
+            "headline": "EuroDjangoCon 2009",
+            "pub_date": "2009-02-11 11:00:00",
+            "body": "I think most people have already seen the news, but EuroDjangoCon 2009 is a go! DjangoCon 2008 was such a blast that we're doing it again, this time in Europe. EuroDjangoCon 2009 will be held in Prague, Czech Republic from May 4th to May 6th. The conference will be followed by two days of development sprints (May 7th and 8th). Robert Lofthouse is once again the organizer and conference chair; he's got an awesome set of speakers lined up. Keynoters will be Blaine Cook (Osmosoft), Joe Stump (Digg), Leah Culver (Six Apart), and (ahem) yours truly. Tickets are now on sale, and you can find out all the rest of the details over at http://euro.djangocon.org/. Hope to see you there!"
+        }
+    },
+    {
+        "pk": "4",
+        "model": "search.article",
+        "fields": {
+            "headline": "Django 1.0.1 released!",
+            "pub_date": "2008-11-15 11:00:00",
+            "body": "Following the previously-announced schedule, today the Django team has released Django 1.0.1. This is a bugfix-only release containing fixes and improvements to the Django 1.0 codebase, and is a recommended upgrade for anyone using or targeting Django 1.0. For full details, check out the 1.0.1 release notes, and to grab a copy of Django 1.0.1, visit the downloads page. For the security-conscious, a file containing checksums of the 1.0.1 package, signed with the release manager's key, is available. And with Thanksgiving coming up in the US, your friendly local release manager would like to pause for a moment and express thanks, on behalf of myself and the Django development team, for all the work put in by all the members of our community to help keep the releases coming, the tickets triaged and the bugs fixed. We wouldn't be able to do it without all of you, so give yourselves a big pat on the back and see if you can't sneak an extra slice of pie come Thanksgiving dinner. We'll see you again in a few months, for either Django 1.0.2 or Django 1.1. Happy holidays!"
+        }
+    },
+    {
+        "pk": "5",
+        "model": "search.article",
+        "fields": {
+            "headline": "Django 1.0.2 released",
+            "pub_date": "2008-11-18 11:00:00",
+            "body": "Shortly after last week's Django 1.0.1 release, several people noted that the packaging script used to produce the release omitted several directories from the Django source tree; mostly this affected some unit tests, but at least one of the omitted directories affected the use of Django itself (specifically, of django.contrib.gis). So tonight we're issuing Django 1.0.2, which is built around an updated packaging script and should resolve these problems. This is a recommended upgrade for anyone using or targeting Django 1.0 or Django 1.0.1; to obtain a copy, swing by the downloads page, and don't forget to read the release notes. For the security conscious, a signed file containing the package's checksums is, as always, available."
+        }
+    },
+    {
+        "pk": "6",
+        "model": "search.article",
+        "fields": {
+            "headline": "Django 1.0 released!",
+            "pub_date": "2008-09-03 11:00:00",
+            "body": "No, you’re not hallucinating, it’s really here. Around three years ago, Adrian, Simon, Wilson and I released some code to the world. Our plan was to hack quietly on it for a bit, release a solid 1.0 release, and then really get the ball rolling. Well. What happened, of course, was that an amazing community sprung up literally overnight — our IRC channel had over a hundred people in it the day after release, and it’s never been that “empty” since. I really can’t stress enough how amazing our community of users and developers are. About half of the code that’s gone into Django over the past three years has been contributed by someone other than a core committer. Since our last stable release, we’ve made over 4,000 code commits, fixed more than 2,000 bugs, and edited, added, or removed around 350,000 lines of code. We’ve also added 40,000 lines of new documentation, and greatly improved what was already there. Django 1.0 represents a the largest milestone in Django’s development to date: a web framework that a group of perfectionists can truly be proud of. Without this amazing community, though, it would have never happened. You can download Django 1.0 on the Django downloads page, and read the complete release notes. For distributors and for verification purposes, a file containing the MD5 and SHA1 checksums of the 1.0 package has been placed on the djangoproject.com server. This file is PGP-signed with the Django release manager’s public key. This key has the ID 0x8C8B2AE1 and can be obtained from, e.g., the MIT PGP keyserver."
+        }
+    }
+]
