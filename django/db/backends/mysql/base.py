@@ -147,24 +147,28 @@ class DatabaseOperations(BaseDatabaseOperations):
         """
         return ["NULL"]
 
-    def fulltext_search_sql(self, fields):
+    def fulltext_search_sql(self, fields, table=None):
         qn = self.quote_name
         if table is None:
             s = '%s'
         else:
             s = '%s.%%s' % qn(table)
-        fields = [s % qn(f.column) for f in fields]
-        return 'MATCH (%s) AGAINST (%%s IN BOOLEAN MODE)' % ", ".join(fields)
+        # __search lookup
+        if isinstance(fields, str):
+            qn_fields = [qn(fields)]
+        else:
+            qn_fields = [s % qn(f.column) for f in fields]
+        return 'MATCH (%s) AGAINST (%%s IN BOOLEAN MODE)' % ", ".join(qn_fields)
 
     def fulltext_relevance_sql(self, fields, table=None):
-        return fulltext_search_sql(fields, table)
+        return self.fulltext_search_sql(fields, table)
 
     def fulltext_prepare_queries(self, queries):
         """
         Given a list of search queries, returns a single query string.
         """
         # TODO: this should be better
-        return '+'+' +'.join([' +'.join(q.split()) for q in l])
+        return '+'+' +'.join([' +'.join(q.split()) for q in queries])
 
     def no_limit_value(self):
         # 2**64 - 1, as recommended by the MySQL documentation

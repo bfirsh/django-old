@@ -70,4 +70,4 @@ class DatabaseCreation(BaseDatabaseCreation):
             style.SQL_TABLE(qn(self._fulltext_index_name(model, fields))) + ' ' +
             style.SQL_KEYWORD('ON') + ' ' +
             style.SQL_TABLE(qn(model._meta.db_table)) + ' ' +
-            "(%s);" % style.SQL_FIELD(qn(", ".join([f.column for f in fields]))))
+            "(%s);" % style.SQL_FIELD(", ".join([qn(f.column) for f in fields])))
