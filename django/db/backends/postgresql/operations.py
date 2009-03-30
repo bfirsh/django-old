@@ -187,7 +187,7 @@ class DatabaseOperations(BaseDatabaseOperations):
         qn = self.quote_name
         lang = settings.DATABASE_OPTIONS.get('search_language', 'english')
         tsvector_pattern = "to_tsvector('%(lang)s', %(col)s)"
-        # __search lookup, maybe needs a separate method?
+        # __search lookup
         if isinstance(fields, str):
             return tsvector_pattern % {
                 'col': qn(fields),
@@ -212,11 +212,11 @@ class DatabaseOperations(BaseDatabaseOperations):
         return tsvector
         
     def fulltext_search_sql(self, fields, table=None):
-        return 'to_tsquery(%%s) @@ %s' % self.fulltext_tsvector_sql(fields, table)
+        return 'plainto_tsquery(%%s) @@ %s' % self.fulltext_tsvector_sql(fields, table)
     
     def fulltext_relevance_sql(self, fields, table=None):
         weights = self._calculate_fulltext_weights(fields)
-        return "ts_rank('{%.2f, %.2f, %.2f, %.2f}', %s, to_tsquery(%%s), 32)" \
+        return "ts_rank('{%.2f, %.2f, %.2f, %.2f}', %s, plainto_tsquery(%%s), 32)" \
                % (tuple(weights) + (self.fulltext_tsvector_sql(fields, table),))
                     
     def fulltext_prepare_queries(self, queries):
@@ -226,6 +226,5 @@ class DatabaseOperations(BaseDatabaseOperations):
         This is primarily for joining the queries using AND statements, but 
         could also be used for processing the query itself.
         """
-        # TODO: this should be better
-        return ' & '.join([' & '.join(q.split()) for q in queries])
+        return ' '.join(queries)
         
