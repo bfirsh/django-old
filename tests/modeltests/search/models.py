@@ -26,6 +26,9 @@ __test__ = {'API_TESTS': """
 >>> Article.objects.search('django').search('perfectionists')
 [<Article: Django 1.0 released!>]
 
+>>> Article.objects.search('django pycon')
+[<Article: Django 1.1 alpha 1 released>, <Article: Django 1.1 beta released, wombat>]
+
 >>> Article.objects.search('beta').order_by('-search__relevance')
 [<Article: Django 1.1 beta released, wombat>, <Article: Django 1.1 alpha 1 released>]
 
