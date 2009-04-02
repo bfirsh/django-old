@@ -7,7 +7,7 @@ timezones are only evaluated at the moment of execution and will therefore be
 consistent.
 """
 
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 from django.utils.tzinfo import LocalTimezone, FixedOffset
 from django.utils.safestring import mark_safe
@@ -28,6 +28,8 @@ def get_filter_tests():
     now = datetime.now()
     now_tz = datetime.now(LocalTimezone(now))
     now_tz_i = datetime.now(FixedOffset((3 * 60) + 15)) # imaginary time zone
+    today = date.today()
+
     return {
         # Default compare with datetime.now()
         'filter-timesince01' : ('{{ a|timesince }}', {'a': datetime.now() + timedelta(minutes=-1, seconds = -10)}, '1 minute'),
@@ -55,6 +57,10 @@ def get_filter_tests():
         'filter-timesince15' : ('{{ a|timesince:b }}', {'a': now, 'b': now_tz_i}, ''),
         'filter-timesince16' : ('{{ a|timesince:b }}', {'a': now_tz_i, 'b': now}, ''),
 
+        # Regression for #9065 (two date objects).
+        'filter-timesince17' : ('{{ a|timesince:b }}', {'a': today, 'b': today}, '0 minutes'),
+        'filter-timesince18' : ('{{ a|timesince:b }}', {'a': today, 'b': today + timedelta(hours=24)}, '1 day'),
+
         # Default compare with datetime.now()
         'filter-timeuntil01' : ('{{ a|timeuntil }}', {'a':datetime.now() + timedelta(minutes=2, seconds = 10)}, '2 minutes'),
         'filter-timeuntil02' : ('{{ a|timeuntil }}', {'a':(datetime.now() + timedelta(days=1, seconds = 10))}, '1 day'),
@@ -73,6 +79,10 @@ def get_filter_tests():
         # Ensures that differing timezones are calculated correctly
         'filter-timeuntil10' : ('{{ a|timeuntil }}', {'a': now_tz_i}, '0 minutes'),
         'filter-timeuntil11' : ('{{ a|timeuntil:b }}', {'a': now_tz_i, 'b': now_tz}, '0 minutes'),
+
+        # Regression for #9065 (two date objects).
+        'filter-timeuntil12' : ('{{ a|timeuntil:b }}', {'a': today, 'b': today}, '0 minutes'),
+        'filter-timeuntil13' : ('{{ a|timeuntil:b }}', {'a': today, 'b': today - timedelta(hours=24)}, '1 day'),
 
         'filter-addslash01': ("{% autoescape off %}{{ a|addslashes }} {{ b|addslashes }}{% endautoescape %}", {"a": "<a>'", "b": mark_safe("<a>'")}, ur"<a>\' <a>\'"),
         'filter-addslash02': ("{{ a|addslashes }} {{ b|addslashes }}", {"a": "<a>'", "b": mark_safe("<a>'")}, ur"&lt;a&gt;\&#39; <a>\'"),
@@ -281,13 +291,33 @@ def get_filter_tests():
         'escapejs01': (r'{{ a|escapejs }}', {'a': 'testing\r\njavascript \'string" <b>escaping</b>'}, 'testing\\x0D\\x0Ajavascript \\x27string\\x22 \\x3Cb\\x3Eescaping\\x3C/b\\x3E'),
         'escapejs02': (r'{% autoescape off %}{{ a|escapejs }}{% endautoescape %}', {'a': 'testing\r\njavascript \'string" <b>escaping</b>'}, 'testing\\x0D\\x0Ajavascript \\x27string\\x22 \\x3Cb\\x3Eescaping\\x3C/b\\x3E'),
 
+
+        # length filter.
+        'length01': ('{{ list|length }}', {'list': ['4', None, True, {}]}, '4'),
+        'length02': ('{{ list|length }}', {'list': []}, '0'),
+        'length03': ('{{ string|length }}', {'string': ''}, '0'),
+        'length04': ('{{ string|length }}', {'string': 'django'}, '6'),
+        # Invalid uses that should fail silently.
+        'length05': ('{{ int|length }}', {'int': 7}, ''),
+        'length06': ('{{ None|length }}', {'None': None}, ''),
+
+        # length_is filter.
+        'length_is01': ('{% if some_list|length_is:"4" %}Four{% endif %}', {'some_list': ['4', None, True, {}]}, 'Four'),
+        'length_is02': ('{% if some_list|length_is:"4" %}Four{% else %}Not Four{% endif %}', {'some_list': ['4', None, True, {}, 17]}, 'Not Four'),
+        'length_is03': ('{% if mystring|length_is:"4" %}Four{% endif %}', {'mystring': 'word'}, 'Four'),
+        'length_is04': ('{% if mystring|length_is:"4" %}Four{% else %}Not Four{% endif %}', {'mystring': 'Python'}, 'Not Four'),
+        'length_is05': ('{% if mystring|length_is:"4" %}Four{% else %}Not Four{% endif %}', {'mystring': ''}, 'Not Four'),
+        'length_is06': ('{% with var|length as my_length %}{{ my_length }}{% endwith %}', {'var': 'django'}, '6'),
         # Boolean return value from length_is should not be coerced to a string
-        'lengthis01': (r'{% if "X"|length_is:0 %}Length is 0{% else %}Length not 0{% endif %}', {}, 'Length not 0'),
-        'lengthis02': (r'{% if "X"|length_is:1 %}Length is 1{% else %}Length not 1{% endif %}', {}, 'Length is 1'),
+        'length_is07': (r'{% if "X"|length_is:0 %}Length is 0{% else %}Length not 0{% endif %}', {}, 'Length not 0'),
+        'length_is08': (r'{% if "X"|length_is:1 %}Length is 1{% else %}Length not 1{% endif %}', {}, 'Length is 1'),
+        # Invalid uses that should fail silently.
+        'length_is09': ('{{ var|length_is:"fish" }}', {'var': 'django'}, ''),
+        'length_is10': ('{{ int|length_is:"1" }}', {'int': 7}, ''),
+        'length_is11': ('{{ none|length_is:"1" }}', {'none': None}, ''),
 
         'join01': (r'{{ a|join:", " }}', {'a': ['alpha', 'beta & me']}, 'alpha, beta &amp; me'),
         'join02': (r'{% autoescape off %}{{ a|join:", " }}{% endautoescape %}', {'a': ['alpha', 'beta & me']}, 'alpha, beta & me'),
         'join03': (r'{{ a|join:" &amp; " }}', {'a': ['alpha', 'beta & me']}, 'alpha &amp; beta &amp; me'),
         'join04': (r'{% autoescape off %}{{ a|join:" &amp; " }}{% endautoescape %}', {'a': ['alpha', 'beta & me']}, 'alpha &amp; beta & me'),
     }
-

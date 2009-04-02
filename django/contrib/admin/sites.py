@@ -24,7 +24,7 @@ class NotRegistered(Exception):
 class AdminSite(object):
     """
     An AdminSite object encapsulates an instance of the Django admin application, ready
-    to be hooked in to your URLConf. Models are registered with the AdminSite using the
+    to be hooked in to your URLconf. Models are registered with the AdminSite using the
     register() method, and the root() method can then be used as a Django view function
     that presents a full admin interface for the collection of registered models.
     """
@@ -398,7 +398,8 @@ class AdminSite(object):
             'root_path': self.root_path,
         }
         context.update(extra_context or {})
-        return render_to_response(self.app_index_template or 'admin/app_index.html', context,
+        return render_to_response(self.app_index_template or ('admin/%s/app_index.html' % app_label,
+            'admin/app_index.html'), context,
             context_instance=template.RequestContext(request)
         )
 

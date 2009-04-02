@@ -54,6 +54,10 @@ def save_instance(form, instance, fields=None, fail_message='saved',
         # callable upload_to can use the values from other fields.
         if isinstance(f, models.FileField):
             file_field_list.append(f)
+        # OneToOneField doesn't allow assignment of None. Guard against that
+        # instead of allowing it and throwing an error.
+        if isinstance(f, models.OneToOneField) and cleaned_data[f.name] is None:
+            pass
         else:
             f.save_form_data(instance, cleaned_data[f.name])
 
@@ -266,7 +270,13 @@ class BaseModelForm(BaseForm):
 
             lookup_kwargs = {}
             for field_name in unique_check:
-                lookup_kwargs[field_name] = self.cleaned_data[field_name]
+                lookup_value = self.cleaned_data[field_name]
+                # ModelChoiceField will return an object instance rather than
+                # a raw primary key value, so convert it to a pk value before
+                # using it in a lookup.
+                if isinstance(self.fields[field_name], ModelChoiceField):
+                    lookup_value =  lookup_value.pk
+                lookup_kwargs[field_name] = lookup_value
 
             qs = self.instance.__class__._default_manager.filter(**lookup_kwargs)
 
@@ -357,12 +367,17 @@ class BaseModelFormSet(BaseFormSet):
                  queryset=None, **kwargs):
         self.queryset = queryset
         defaults = {'data': data, 'files': files, 'auto_id': auto_id, 'prefix': prefix}
-        defaults['initial'] = [model_to_dict(obj) for obj in self.get_queryset()]
         defaults.update(kwargs)
         super(BaseModelFormSet, self).__init__(**defaults)
 
+    def initial_form_count(self):
+        """Returns the number of forms that are required in this FormSet."""
+        if not (self.data or self.files):
+            return len(self.get_queryset())
+        return super(BaseModelFormSet, self).initial_form_count()
+
     def _construct_form(self, i, **kwargs):
-        if i < self._initial_form_count:
+        if i < self.initial_form_count():
             kwargs['instance'] = self.get_queryset()[i]
         return super(BaseModelFormSet, self)._construct_form(i, **kwargs)
 
@@ -380,11 +395,11 @@ class BaseModelFormSet(BaseFormSet):
 
     def save_new(self, form, commit=True):
         """Saves and returns a new model instance for the given form."""
-        return save_instance(form, self.model(), exclude=[self._pk_field.name], commit=commit)
+        return form.save(commit=commit)
 
     def save_existing(self, form, instance, commit=True):
         """Saves and returns an existing model instance for the given form."""
-        return save_instance(form, instance, exclude=[self._pk_field.name], commit=commit)
+        return form.save(commit=commit)
 
     def save(self, commit=True):
         """Saves model instances for every form, adding and changing instances
@@ -410,16 +425,22 @@ class BaseModelFormSet(BaseFormSet):
             existing_objects[obj.pk] = obj
         saved_instances = []
         for form in self.initial_forms:
-            obj = existing_objects[form.cleaned_data[self._pk_field.name]]
-            if self.can_delete and form.cleaned_data[DELETION_FIELD_NAME]:
-                self.deleted_objects.append(obj)
-                obj.delete()
-            else:
-                if form.changed_data:
-                    self.changed_objects.append((obj, form.changed_data))
-                    saved_instances.append(self.save_existing(form, obj, commit=commit))
-                    if not commit:
-                        self.saved_forms.append(form)
+            pk_name = self._pk_field.name
+            raw_pk_value = form._raw_value(pk_name)
+            pk_value = form.fields[pk_name].clean(raw_pk_value).pk
+            obj = existing_objects[pk_value]
+            if self.can_delete:
+                raw_delete_value = form._raw_value(DELETION_FIELD_NAME)
+                should_delete = form.fields[DELETION_FIELD_NAME].clean(raw_delete_value)
+                if should_delete:
+                    self.deleted_objects.append(obj)
+                    obj.delete()
+                    continue
+            if form.changed_data:
+                self.changed_objects.append((obj, form.changed_data))
+                saved_instances.append(self.save_existing(form, obj, commit=commit))
+                if not commit:
+                    self.saved_forms.append(form)
         return saved_instances
 
     def save_new_objects(self, commit=True):
@@ -429,8 +450,11 @@ class BaseModelFormSet(BaseFormSet):
                 continue
             # If someone has marked an add form for deletion, don't save the
             # object.
-            if self.can_delete and form.cleaned_data[DELETION_FIELD_NAME]:
-                continue
+            if self.can_delete:
+                raw_delete_value = form._raw_value(DELETION_FIELD_NAME)
+                should_delete = form.fields[DELETION_FIELD_NAME].clean(raw_delete_value)
+                if should_delete:
+                    continue
             self.new_objects.append(self.save_new(form, commit=commit))
             if not commit:
                 self.saved_forms.append(form)
@@ -438,10 +462,23 @@ class BaseModelFormSet(BaseFormSet):
 
     def add_fields(self, form, index):
         """Add a hidden field for the object's primary key."""
-        from django.db.models import AutoField
+        from django.db.models import AutoField, OneToOneField, ForeignKey
         self._pk_field = pk = self.model._meta.pk
-        if pk.auto_created or isinstance(pk, AutoField):
-            form.fields[self._pk_field.name] = IntegerField(required=False, widget=HiddenInput)
+        # If a pk isn't editable, then it won't be on the form, so we need to
+        # add it here so we can tell which object is which when we get the
+        # data back. Generally, pk.editable should be false, but for some
+        # reason, auto_created pk fields and AutoField's editable attribute is
+        # True, so check for that as well.
+        if (not pk.editable) or (pk.auto_created or isinstance(pk, AutoField)):
+            try:
+                pk_value = self.get_queryset()[index].pk
+            except IndexError:
+                pk_value = None
+            if isinstance(pk, OneToOneField) or isinstance(pk, ForeignKey):
+                qs = pk.rel.to._default_manager.get_query_set()
+            else:
+                qs = self.model._default_manager.get_query_set()
+            form.fields[self._pk_field.name] = ModelChoiceField(qs, initial=pk_value, required=False, widget=HiddenInput)
         super(BaseModelFormSet, self).add_fields(form, index)
 
 def modelformset_factory(model, form=ModelForm, formfield_callback=lambda f: f.formfield(),
@@ -477,11 +514,15 @@ class BaseInlineFormSet(BaseModelFormSet):
         super(BaseInlineFormSet, self).__init__(data, files, prefix=prefix,
                                                 queryset=qs)
 
-    def _construct_forms(self):
+    def initial_form_count(self):
         if self.save_as_new:
-            self._total_form_count = self._initial_form_count
-            self._initial_form_count = 0
-        super(BaseInlineFormSet, self)._construct_forms()
+            return 0
+        return super(BaseInlineFormSet, self).initial_form_count()
+
+    def total_form_count(self):
+        if self.save_as_new:
+            return super(BaseInlineFormSet, self).initial_form_count()
+        return super(BaseInlineFormSet, self).total_form_count()
 
     def _construct_form(self, i, **kwargs):
         form = super(BaseInlineFormSet, self)._construct_form(i, **kwargs)
@@ -489,6 +530,9 @@ class BaseInlineFormSet(BaseModelFormSet):
             # Remove the primary key from the form's data, we are only
             # creating new instances
             form.data[form.add_prefix(self._pk_field.name)] = None
+
+            # Remove the foreign key from the form's data
+            form.data[form.add_prefix(self.fk.name)] = None
         return form
 
     #@classmethod
@@ -498,21 +542,26 @@ class BaseInlineFormSet(BaseModelFormSet):
     get_default_prefix = classmethod(get_default_prefix)
 
     def save_new(self, form, commit=True):
-        fk_attname = self.fk.get_attname()
-        kwargs = {fk_attname: self.instance.pk}
-        new_obj = self.model(**kwargs)
-        if fk_attname == self._pk_field.attname or self._pk_field.auto_created:
-            exclude =  [self._pk_field.name]
-        else:
-            exclude = []
-        return save_instance(form, new_obj, exclude=exclude, commit=commit)
+        # Use commit=False so we can assign the parent key afterwards, then
+        # save the object.
+        obj = form.save(commit=False)
+        setattr(obj, self.fk.get_attname(), self.instance.pk)
+        obj.save()
+        # form.save_m2m() can be called via the formset later on if commit=False
+        if commit and hasattr(form, 'save_m2m'):
+            form.save_m2m()
+        return obj
 
     def add_fields(self, form, index):
         super(BaseInlineFormSet, self).add_fields(form, index)
         if self._pk_field == self.fk:
             form.fields[self._pk_field.name] = InlineForeignKeyField(self.instance, pk_field=True)
         else:
-            form.fields[self.fk.name] = InlineForeignKeyField(self.instance, label=form.fields[self.fk.name].label)
+            # The foreign key field might not be on the form, so we poke at the
+            # Model field to get the label, since we need that for error messages.
+            form.fields[self.fk.name] = InlineForeignKeyField(self.instance,
+                label=getattr(form.fields.get(self.fk.name), 'label', capfirst(self.fk.verbose_name))
+            )
 
 def _get_foreign_key(parent_model, model, fk_name=None):
     """
@@ -620,8 +669,6 @@ class InlineForeignKeyField(Field):
         # ensure the we compare the values as equal types.
         if force_unicode(value) != force_unicode(self.parent_instance.pk):
             raise ValidationError(self.error_messages['invalid_choice'])
-        if self.pk_field:
-            return self.parent_instance.pk
         return self.parent_instance
 
 class ModelChoiceIterator(object):
@@ -729,6 +776,7 @@ class ModelMultipleChoiceField(ModelChoiceField):
         'list': _(u'Enter a list of values.'),
         'invalid_choice': _(u'Select a valid choice. %s is not one of the'
                             u' available choices.'),
+        'invalid_pk_value': _(u'"%s" is not a valid value for a primary key.')
     }
 
     def __init__(self, queryset, cache_choices=False, required=True,
@@ -751,6 +799,8 @@ class ModelMultipleChoiceField(ModelChoiceField):
                 obj = self.queryset.get(pk=val)
             except self.queryset.model.DoesNotExist:
                 raise ValidationError(self.error_messages['invalid_choice'] % val)
+            except ValueError:
+                raise ValidationError(self.error_messages['invalid_pk_value'] % val)
             else:
                 final_values.append(obj)
         return final_values

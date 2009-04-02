@@ -7,14 +7,8 @@ from django.contrib.gis.db.models.aggregates import *
 # The GeoManager
 from django.contrib.gis.db.models.manager import GeoManager
 
-# The GeoQ object
-from django.contrib.gis.db.models.query import GeoQ
-
 # The geographic-enabled fields.
 from django.contrib.gis.db.models.fields import \
      GeometryField, PointField, LineStringField, PolygonField, \
      MultiPointField, MultiLineStringField, MultiPolygonField, \
      GeometryCollectionField
-
-# The geographic mixin class.
-from mixin import GeoMixin

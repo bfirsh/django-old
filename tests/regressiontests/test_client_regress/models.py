@@ -444,7 +444,7 @@ class UrlconfSubstitutionTests(TestCase):
     urls = 'regressiontests.test_client_regress.urls'
 
     def test_urlconf_was_changed(self):
-        "TestCase can enforce a custom URLConf on a per-test basis"
+        "TestCase can enforce a custom URLconf on a per-test basis"
         url = reverse('arg_view', args=['somename'])
         self.assertEquals(url, '/arg_view/somename/')
 
@@ -504,6 +504,14 @@ class SessionTests(TestCase):
         response = self.client.get('/test_client_regress/check_session/')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content, 'YES')
+
+    def test_logout(self):
+        """Logout should work whether the user is logged in or not (#9978)."""
+        self.client.logout()
+        login = self.client.login(username='testclient',password='password')
+        self.failUnless(login, 'Could not log in')
+        self.client.logout()
+        self.client.logout()
 
 class RequestMethodTests(TestCase):
     def test_get(self):

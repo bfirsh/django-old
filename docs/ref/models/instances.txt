@@ -18,12 +18,13 @@ Throughout this reference we'll use the :ref:`example weblog models
 Creating objects
 ================
 
-To create a new instance of a model, just instantiate it like any other Python class:
+To create a new instance of a model, just instantiate it like any other Python
+class:
 
 .. class:: Model(**kwargs)
 
-The keyword arguments to are simply the names of the fields you've defined on
-your model. Note that instantiating a model in no way touches your database; for
+The keyword arguments are simply the names of the fields you've defined on your
+model. Note that instantiating a model in no way touches your database; for
 that, you need to ``save()``.
 
 Saving objects
@@ -289,7 +290,7 @@ The ``permalink`` decorator
 
 The problem with the way we wrote ``get_absolute_url()`` above is that it
 slightly violates the DRY principle: the URL for this object is defined both
-in the URLConf file and in the model.
+in the URLconf file and in the model.
 
 You can further decouple your models from the URLconf using the ``permalink``
 decorator:

@@ -129,7 +129,7 @@ def view_index(request):
             site_obj = GenericSite()
         for (func, regex) in view_functions:
             views.append({
-                'name': func.__name__,
+                'name': getattr(func, '__name__', func.__class__.__name__),
                 'module': func.__module__,
                 'site_id': settings_mod.SITE_ID,
                 'site': site_obj,
@@ -264,7 +264,7 @@ def template_detail(request, template):
         else:
             site_obj = GenericSite()
         for dir in settings_mod.TEMPLATE_DIRS:
-            template_file = os.path.join(dir, "%s.html" % template)
+            template_file = os.path.join(dir, template)
             templates.append({
                 'file': template_file,
                 'exists': os.path.exists(template_file),

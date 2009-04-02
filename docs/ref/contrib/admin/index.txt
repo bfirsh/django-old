@@ -408,9 +408,6 @@ the change list page::
         list_display = ('first_name', 'last_name', 'birthday')
         list_display_links = ('first_name', 'last_name')
 
-Finally, note that in order to use ``list_display_links``, you must define
-``list_display``, too.
-
 .. _admin-list-editable:
 
 ``list_editable``
@@ -428,7 +425,7 @@ edit and save multiple rows at once.
     ``list_editable`` interacts with a couple of other options in particular
     ways; you should note the following rules:
 
-        * To use ``list_editable`` you must have defined ``ordering`` defined on
+        * To use ``list_editable`` you must have defined ``ordering`` on
           either your model or your ``ModelAdmin``.
 
         * Any field in ``list_editable`` must also be in ``list_display``. You
@@ -680,7 +677,7 @@ The value is another dictionary; these arguments will be passed to
 A list of actions to make available on the change list page. See
 :ref:`ref-contrib-admin-actions` for details.
 
-``actions_on_top``, ``actions_on_buttom``
+``actions_on_top``, ``actions_on_bottom``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Controls where on the page the actions bar appears. By default, the admin
@@ -835,8 +832,17 @@ It is important you use a ``ModelForm`` here otherwise things can break. See the
 ============================
 
 The admin interface has the ability to edit models on the same page as a
-parent model. These are called inlines. You can add them to a model by
-specifying them in a ``ModelAdmin.inlines`` attribute::
+parent model. These are called inlines. Suppose you have these two models::
+
+     class Author(models.Model):
+        name = models.CharField(max_length=100)
+
+     class Book(models.Model):
+        author = models.ForeignKey(Author)
+        title = models.CharField(max_length=100)
+
+You can edit the books authored by an author on the author page. You add 
+inlines to a model by specifying them in a ``ModelAdmin.inlines``::
 
     class BookInline(admin.TabularInline):
         model = Book
@@ -881,7 +887,7 @@ many possibilities of customization. Inlines are built around
 ``form``
 ~~~~~~~~
 
-The value for ``form`` is inherited from ``ModelAdmin``. This is what is
+The value for ``form`` defaults to ``BaseModelForm``. This is what is
 passed through to ``formset_factory`` when creating the formset for this
 inline.
 
@@ -1124,6 +1130,7 @@ Templates which may be overridden per app or model
 Not every template in ``contrib\admin\templates\admin`` may be overridden per
 app or per model. The following can:
 
+    * ``app_index.html``
     * ``change_form.html``
     * ``change_list.html``
     * ``delete_confirmation.html``
@@ -1168,7 +1175,7 @@ Hooking ``AdminSite`` instances into your URLconf
 
 The last step in setting up the Django admin is to hook your ``AdminSite``
 instance into your URLconf. Do this by pointing a given URL at the
-``AdminSite.root`` method.
+``AdminSite.urls`` method.
 
 In this example, we register the default ``AdminSite`` instance
 ``django.contrib.admin.site`` at the URL ``/admin/`` ::

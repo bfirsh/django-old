@@ -17,8 +17,8 @@ performance gains over other server arrangements.
 Django requires Apache 2.x and mod_python 3.x, and you should use Apache's
 `prefork MPM`_, as opposed to the `worker MPM`_.
 
-You may also be interested in :ref:`How to use Django with FastCGI, SCGI or AJP
-<howto-deployment-fastcgi>` (which also covers SCGI and AJP).
+You may also be interested in :ref:`How to use Django with FastCGI, SCGI, or
+AJP <howto-deployment-fastcgi>`.
 
 .. _Apache: http://httpd.apache.org/
 .. _mod_python: http://www.modpython.org/
@@ -38,7 +38,7 @@ Then edit your ``httpd.conf`` file and add the following::
         SetHandler python-program
         PythonHandler django.core.handlers.modpython
         SetEnv DJANGO_SETTINGS_MODULE mysite.settings
-        PythonOption django.root /mysite        
+        PythonOption django.root /mysite
         PythonDebug On
     </Location>
 
@@ -58,12 +58,12 @@ be passed through to the mod_python handler in Django, via the ``PythonOption
 django.root ...`` line. The value set on that line (the last item) should
 match the string given in the ``<Location ...>`` directive. The effect of this
 is that Django will automatically strip the ``/mysite`` string from the front
-of any URLs before matching them against your ``URLConf`` patterns. If you
-later move your site to live under ``/mysite2``, you will not have to change
-anything except the ``django.root`` option in the config file.
+of any URLs before matching them against your URLconf patterns. If you later
+move your site to live under ``/mysite2``, you will not have to change anything
+except the ``django.root`` option in the config file.
 
 When using ``django.root`` you should make sure that what's left, after the
-prefix has been removed, begins with a slash. Your URLConf patterns that are
+prefix has been removed, begins with a slash. Your URLconf patterns that are
 expecting an initial slash will then work correctly. In the above example,
 since we want to send things like ``/mysite/admin/`` to ``/admin/``, we need
 to remove the string ``/mysite`` from the beginning, so that is the
@@ -84,7 +84,7 @@ computer, you'll have to tell mod_python where your project can be found:
         SetHandler python-program
         PythonHandler django.core.handlers.modpython
         SetEnv DJANGO_SETTINGS_MODULE mysite.settings
-        PythonOption django.root /mysite        
+        PythonOption django.root /mysite
         PythonDebug On
         **PythonPath "['/path/to/project'] + sys.path"**
     </Location>
@@ -215,8 +215,10 @@ We recommend using a separate Web server -- i.e., one that's not also running
 Django -- for serving media. Here are some good choices:
 
     * lighttpd_
+    * Nginx_
     * TUX_
     * A stripped-down version of Apache_
+    * Cherokee_
 
 If, however, you have no option but to serve media files on the same Apache
 ``VirtualHost`` as Django, here's how you can turn off mod_python for a
@@ -249,8 +251,10 @@ the ``media`` subdirectory and any URL that ends with ``.jpg``, ``.gif`` or
 
 
 .. _lighttpd: http://www.lighttpd.net/
+.. _Nginx: http://wiki.codemongers.com/Main
 .. _TUX: http://en.wikipedia.org/wiki/TUX_web_server
 .. _Apache: http://httpd.apache.org/
+.. _Cherokee: http://www.cherokee-project.com/
 
 .. _howto-deployment-modpython-serving-the-admin-files:
 
@@ -273,7 +277,7 @@ Here are two recommended approaches:
        document root. This way, all of your Django-related files -- code **and**
        templates -- stay in one place, and you'll still be able to ``svn
        update`` your code to get the latest admin templates, if they change.
-       
+
     2. Or, copy the admin media files so that they live within your Apache
        document root.
 
@@ -337,7 +341,7 @@ of which has to do with Django itself.
     1. It may be because your Python code is importing the "pyexpat" module,
        which may conflict with the version embedded in Apache. For full
        information, see `Expat Causing Apache Crash`_.
-       
+
     2. It may be because you're running mod_python and mod_php in the same
        Apache instance, with MySQL as your database backend. In some cases,
        this causes a known mod_python issue due to version conflicts in PHP and
@@ -361,5 +365,3 @@ as necessary.
 .. _Expat Causing Apache Crash: http://www.dscpl.com.au/articles/modpython-006.html
 .. _mod_python FAQ entry: http://modpython.org/FAQ/faqw.py?req=show&file=faq02.013.htp
 .. _Getting mod_python Working: http://www.dscpl.com.au/articles/modpython-001.html
-
-

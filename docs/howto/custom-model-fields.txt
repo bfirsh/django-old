@@ -45,7 +45,7 @@ something like this::
             self.east = east
             self.south = south
             self.west = west
-        
+
         # ... (other possibly useful methods omitted) ...
 
 .. _Bridge: http://en.wikipedia.org/wiki/Contract_bridge
@@ -198,15 +198,13 @@ parameters:
     * :attr:`~django.db.models.Field.blank`
     * :attr:`~django.db.models.Field.null`
     * :attr:`~django.db.models.Field.db_index`
-    * :attr:`~django.db.models.Field.core`
     * :attr:`~django.db.models.Field.rel`: Used for related fields (like
       :class:`ForeignKey`). For advanced use only.
     * :attr:`~django.db.models.Field.default`
     * :attr:`~django.db.models.Field.editable`
-    * :attr:`~django.db.models.Field.serialize`: If ``False``, the field will 
+    * :attr:`~django.db.models.Field.serialize`: If ``False``, the field will
       not be serialized when the model is passed to Django's :ref:`serializers
       <topics-serialization>`. Defaults to ``True``.
-    * :attr:`~django.db.models.Field.prepopulate_from`
     * :attr:`~django.db.models.Field.unique_for_date`
     * :attr:`~django.db.models.Field.unique_for_month`
     * :attr:`~django.db.models.Field.unique_for_year`
@@ -216,6 +214,9 @@ parameters:
     * :attr:`~django.db.models.Field.db_tablespace`: Currently only used with
       the Oracle backend and only for index creation. You can usually ignore
       this option.
+    * :attr:`~django.db.models.Field.auto_created`: True if the field was
+      automatically created, as for the `OneToOneField` used by model
+      inheritance. For advanced use only.
 
 All of the options without an explanation in the above list have the same
 meaning they do for normal Django fields. See the :ref:`field documentation
@@ -254,7 +255,7 @@ called when the attribute is initialized.
 Useful methods
 --------------
 
-Once you've created your :class:`~django.db.models.Field` subclass and set up up
+Once you've created your :class:`~django.db.models.Field` subclass and set up
 the ``__metaclass__``, you might consider overriding a few standard methods,
 depending on your field's behavior. The list of methods below is in
 approximately decreasing order of importance, so start from the top.
@@ -419,9 +420,9 @@ For example::
 
 Same as the above, but called when the Field value must be *saved* to the
 database. As the default implementation just calls ``get_db_prep_value``, you
-shouldn't need to implement this method unless your custom field need a special
-conversion when being saved that is not the same as the used for normal query
-parameters (which is implemented by ``get_db_prep_value``).
+shouldn't need to implement this method unless your custom field needs a
+special conversion when being saved that is not the same as the conversion used
+for normal query parameters (which is implemented by ``get_db_prep_value``).
 
 Preprocessing values before saving
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -522,7 +523,7 @@ Continuing our ongoing example, we can write the :meth:`formfield` method as::
             defaults.update(kwargs)
             return super(HandField, self).formfield(**defaults)
 
-This assumes we're imported a ``MyFormField`` field class (which has its own
+This assumes we've imported a ``MyFormField`` field class (which has its own
 default widget). This document doesn't cover the details of writing custom form
 fields.
 

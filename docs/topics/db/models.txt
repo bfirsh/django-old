@@ -1,8 +1,8 @@
 .. _topics-db-models:
 
-==============
-Writing models
-==============
+======
+Models
+======
 
 .. module:: django.db.models
 
@@ -871,7 +871,7 @@ that the field is used in. Since each class has a different name, each related
 name will end up being different. For example::
 
     class Base(models.Model):
-        m2m = models.ManyToMany(OtherModel, related_name="%(class)s_related")
+        m2m = models.ManyToManyField(OtherModel, related_name="%(class)s_related")
 
         class Meta:
             abstract = True
@@ -1019,10 +1019,11 @@ ordering or the default manager in the proxy, without having to alter the
 original.
 
 Proxy models are declared like normal models. You tell Django that it's a
-proxy model by setting the :attr:`~django.db.models.Options.proxy` attribute to of the ``Meta`` class to ``True``.
+proxy model by setting the :attr:`~django.db.models.Options.proxy` attribute of
+the ``Meta`` class to ``True``.
 
 For example, suppose you want to add a method to the standard ``User`` model
-that will make be used in your templates. You can do it like this::
+that will be used in your templates. You can do it like this::
 
     from django.contrib.auth.models import User
 

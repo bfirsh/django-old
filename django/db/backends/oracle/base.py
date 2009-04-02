@@ -14,6 +14,10 @@ except ImportError:
 
 # Oracle takes client-side character set encoding from the environment.
 os.environ['NLS_LANG'] = '.UTF8'
+# This prevents unicode from getting mangled by getting encoded into the
+# potentially non-unicode database character set.
+os.environ['ORA_NCHAR_LITERAL_REPLACE'] = 'TRUE'
+
 try:
     import cx_Oracle as Database
 except ImportError, e:
@@ -21,6 +25,7 @@ except ImportError, e:
     raise ImproperlyConfigured("Error loading cx_Oracle module: %s" % e)
 
 from django.db.backends import *
+from django.db.backends.signals import connection_created
 from django.db.backends.oracle import query
 from django.db.backends.oracle.client import DatabaseClient
 from django.db.backends.oracle.creation import DatabaseCreation
@@ -325,6 +330,7 @@ class DatabaseWrapper(BaseDatabaseWrapper):
                 # Django docs specify cx_Oracle version 4.3.1 or higher, but
                 # stmtcachesize is available only in 4.3.2 and up.
                 pass
+            connection_created.send(sender=self.__class__)
         if not cursor:
             cursor = FormatStylePlaceholderCursor(self.connection)
         return cursor

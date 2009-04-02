@@ -149,7 +149,9 @@ def floatformat(text, arg=-1):
     except InvalidOperation:
         if input_val in special_floats:
             return input_val
-        else:
+        try:
+            d = Decimal(force_unicode(float(text)))
+        except (ValueError, InvalidOperation, TypeError, UnicodeEncodeError):
             return u''
     try:
         p = int(arg)
@@ -515,12 +517,18 @@ last.is_safe = True
 
 def length(value):
     """Returns the length of the value - useful for lists."""
-    return len(value)
+    try:
+        return len(value)
+    except (ValueError, TypeError):
+        return ''
 length.is_safe = True
 
 def length_is(value, arg):
     """Returns a boolean of whether the value's length is the argument."""
-    return len(value) == int(arg)
+    try:
+        return len(value) == int(arg)
+    except (ValueError, TypeError):
+        return ''
 length_is.is_safe = False
 
 def random(value):

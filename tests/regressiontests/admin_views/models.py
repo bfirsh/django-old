@@ -135,6 +135,21 @@ class Thing(models.Model):
 class ThingAdmin(admin.ModelAdmin):
     list_filter = ('color',)
 
+class Fabric(models.Model):
+    NG_CHOICES = (
+        ('Textured', (
+                ('x', 'Horizontal'),
+                ('y', 'Vertical'),
+            )
+        ),
+        ('plain', 'Smooth'),
+    )
+    surface = models.CharField(max_length=20, choices=NG_CHOICES)
+
+class FabricAdmin(admin.ModelAdmin):
+    list_display = ('surface',)
+    list_filter = ('surface',)
+
 class Person(models.Model):
     GENDER_CHOICES = (
         (1, "Male"),
@@ -143,10 +158,10 @@ class Person(models.Model):
     name = models.CharField(max_length=100)
     gender = models.IntegerField(choices=GENDER_CHOICES)
     alive = models.BooleanField()
-    
+
     def __unicode__(self):
         return self.name
-    
+
     class Meta:
         ordering = ["id"]
 
@@ -236,9 +251,43 @@ def redirect_to(request, selected):
 class ExternalSubscriberAdmin(admin.ModelAdmin):
     actions = [external_mail, redirect_to]
 
+class Media(models.Model):
+    name = models.CharField(max_length=60)
+
+class Podcast(Media):
+    release_date = models.DateField()
+
+class PodcastAdmin(admin.ModelAdmin):
+    list_display = ('name', 'release_date')
+    list_editable = ('release_date',)
+
+    ordering = ('name',)
+
+class Parent(models.Model):
+    name = models.CharField(max_length=128)
+
+class Child(models.Model):
+    parent = models.ForeignKey(Parent, editable=False)
+    name = models.CharField(max_length=30, blank=True)
+
+class ChildInline(admin.StackedInline):
+    model = Child
+
+class ParentAdmin(admin.ModelAdmin):
+    model = Parent
+    inlines = [ChildInline]
+
+class EmptyModel(models.Model):
+    def __unicode__(self):
+        return "Primary key = %s" % self.id
+
+class EmptyModelAdmin(admin.ModelAdmin):
+    def queryset(self, request):
+        return super(EmptyModelAdmin, self).queryset(request).filter(pk__gt=1)
+
 admin.site.register(Article, ArticleAdmin)
 admin.site.register(CustomArticle, CustomArticleAdmin)
-admin.site.register(Section, inlines=[ArticleInline])
+admin.site.register(Section, save_as=True, inlines=[ArticleInline])
 admin.site.register(ModelWithStringPrimaryKey)
 admin.site.register(Color)
 admin.site.register(Thing, ThingAdmin)
@@ -246,6 +295,10 @@ admin.site.register(Person, PersonAdmin)
 admin.site.register(Persona, PersonaAdmin)
 admin.site.register(Subscriber, SubscriberAdmin)
 admin.site.register(ExternalSubscriber, ExternalSubscriberAdmin)
+admin.site.register(Podcast, PodcastAdmin)
+admin.site.register(Parent, ParentAdmin)
+admin.site.register(EmptyModel, EmptyModelAdmin)
+admin.site.register(Fabric, FabricAdmin)
 
 # We intentionally register Promo and ChapterXtra1 but not Chapter nor ChapterXtra2.
 # That way we cover all four cases:
@@ -259,5 +312,3 @@ admin.site.register(ExternalSubscriber, ExternalSubscriberAdmin)
 admin.site.register(Book, inlines=[ChapterInline])
 admin.site.register(Promo)
 admin.site.register(ChapterXtra1)
-
-

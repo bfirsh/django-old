@@ -1,6 +1,6 @@
 from django.contrib.auth.tests.basic import BASIC_TESTS
 from django.contrib.auth.tests.views \
-        import PasswordResetTest, ChangePasswordTest
+        import PasswordResetTest, ChangePasswordTest, LoginTest, LogoutTest
 from django.contrib.auth.tests.forms import FORM_TESTS
 from django.contrib.auth.tests.remote_user \
         import RemoteUserTest, RemoteUserNoCreateTest, RemoteUserCustomTest
@@ -14,4 +14,6 @@ __test__ = {
     'FORM_TESTS': FORM_TESTS,
     'TOKEN_GENERATOR_TESTS': TOKEN_GENERATOR_TESTS,
     'CHANGEPASSWORD_TESTS': ChangePasswordTest,
+    'LOGIN_TESTS': LoginTest,
+    'LOGOUT_TESTS': LogoutTest,
 }

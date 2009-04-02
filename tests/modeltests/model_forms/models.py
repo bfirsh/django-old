@@ -93,7 +93,7 @@ class PhoneNumber(models.Model):
 
 class TextFile(models.Model):
     description = models.CharField(max_length=20)
-    file = models.FileField(storage=temp_storage, upload_to='tests')
+    file = models.FileField(storage=temp_storage, upload_to='tests', max_length=15)
 
     def __unicode__(self):
         return self.description
@@ -857,6 +857,10 @@ ValidationError: [u'Select a valid choice. 100 is not one of the available choic
 Traceback (most recent call last):
 ...
 ValidationError: [u'Enter a list of values.']
+>>> f.clean(['fail'])
+Traceback (most recent call last):
+...
+ValidationError: [u'"fail" is not a valid value for a primary key.']
 
 # Add a Category object *after* the ModelMultipleChoiceField has already been
 # instantiated. This proves clean() checks the database during clean() rather
@@ -1017,6 +1021,11 @@ True
 >>> instance = f.save()
 >>> instance.file
 <FieldFile: tests/test1.txt>
+
+# Check if the max_length attribute has been inherited from the model.
+>>> f = TextFileForm(data={'description': u'Assistance'}, files={'file': SimpleUploadedFile('test-maxlength.txt', 'hello world')})
+>>> f.is_valid()
+False
 
 # Edit an instance that already has the file defined in the model. This will not
 # save the file again, but leave it exactly as it is.
