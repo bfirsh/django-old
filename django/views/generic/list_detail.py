@@ -1,3 +1,4 @@
+from django import forms
 from django.template import loader, RequestContext
 from django.http import Http404, HttpResponse
 from django.core.xheaders import populate_xheaders
@@ -99,6 +100,31 @@ def object_list(request, queryset, paginate_by=None, page=None,
         template_name = "%s/%s_list.html" % (model._meta.app_label, model._meta.object_name.lower())
     t = template_loader.get_template(template_name)
     return HttpResponse(t.render(c), mimetype=mimetype)
+
+class SearchForm(forms.Form):
+    query = forms.CharField()
+
+def object_search(request, queryset, paginate_by=None, page=None,
+            allow_empty=True, template_name=None, template_loader=loader,
+            extra_context=None, context_processors=None, template_object_name='object',
+            mimetype=None, order_by='-search__relevance'):
+    if 'query' in request.GET.keys():
+        form = SearchForm(request.GET)
+    else:
+        form = SearchForm()
+    if form.is_valid():
+        queryset = queryset.search(form.cleaned_data['query'])
+        if order_by is not None:
+            queryset = queryset.order_by(order_by)
+    if extra_context is None:
+        extra_context = {}
+    extra_context['form'] = form
+    if not template_name:
+        model = queryset.model
+        template_name = "%s/%s_search.html" % (model._meta.app_label, model._meta.object_name.lower())
+    return object_list(request, queryset, paginate_by, page, allow_empty, 
+                template_name, template_loader, extra_context, 
+                context_processors, template_object_name, mimetype)
 
 def object_detail(request, queryset, object_id=None, slug=None,
         slug_field='slug', template_name=None, template_name_field=None,
