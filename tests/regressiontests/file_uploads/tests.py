@@ -1,3 +1,4 @@
+#! -*- coding: utf-8 -*-
 import os
 import errno
 import shutil
@@ -11,6 +12,8 @@ from django.utils.hashcompat import sha_constructor
 
 from models import FileModel, temp_storage, UPLOAD_TO
 import uploadhandler
+
+UNICODE_FILENAME = u'test-0123456789_中文_Orléans.jpg'
 
 class FileUploadTests(TestCase):
     def test_simple_upload(self):
@@ -32,16 +35,10 @@ class FileUploadTests(TestCase):
         file2.write('a' * (10 * 2 ** 20))
         file2.seek(0)
 
-        # This file contains chinese symbols for a name.
-        file3 = open(os.path.join(tdir, u'test_&#20013;&#25991;_Orl\u00e9ans.jpg'.encode('utf-8')), 'w+b')
-        file3.write('b' * (2 ** 10))
-        file3.seek(0)
-
         post_data = {
             'name': 'Ringo',
-            'file_field1': open(file1.name),
-            'file_field2': open(file2.name),
-            'file_unicode': file3,
+            'file_field1': file1,
+            'file_field2': file2,
             }
 
         for key in post_data.keys():
@@ -53,8 +50,25 @@ class FileUploadTests(TestCase):
 
         response = self.client.post('/file_uploads/verify/', post_data)
 
+        self.assertEqual(response.status_code, 200)
+
+    def test_unicode_file_name(self):
+        tdir = tempfile.gettempdir()
+
+        # This file contains chinese symbols and an accented char in the name.
+        file1 = open(os.path.join(tdir, UNICODE_FILENAME.encode('utf-8')), 'w+b')
+        file1.write('b' * (2 ** 10))
+        file1.seek(0)
+
+        post_data = {
+            'file_unicode': file1,
+            }
+
+        response = self.client.post('/file_uploads/unicode_name/', post_data)
+
+        file1.close()
         try:
-            os.unlink(file3.name)
+            os.unlink(file1.name)
         except:
             pass
 
@@ -137,51 +151,57 @@ class FileUploadTests(TestCase):
         # A small file (under the 5M quota)
         smallfile = tempfile.NamedTemporaryFile()
         smallfile.write('a' * (2 ** 21))
+        smallfile.seek(0)
 
         # A big file (over the quota)
         bigfile = tempfile.NamedTemporaryFile()
         bigfile.write('a' * (10 * 2 ** 20))
+        bigfile.seek(0)
 
         # Small file posting should work.
-        response = self.client.post('/file_uploads/quota/', {'f': open(smallfile.name)})
+        response = self.client.post('/file_uploads/quota/', {'f': smallfile})
         got = simplejson.loads(response.content)
         self.assert_('f' in got)
 
         # Large files don't go through.
-        response = self.client.post("/file_uploads/quota/", {'f': open(bigfile.name)})
+        response = self.client.post("/file_uploads/quota/", {'f': bigfile})
         got = simplejson.loads(response.content)
         self.assert_('f' not in got)
 
     def test_broken_custom_upload_handler(self):
         f = tempfile.NamedTemporaryFile()
         f.write('a' * (2 ** 21))
+        f.seek(0)
 
         # AttributeError: You cannot alter upload handlers after the upload has been processed.
         self.assertRaises(
             AttributeError,
             self.client.post,
             '/file_uploads/quota/broken/',
-            {'f': open(f.name)}
+            {'f': f}
         )
 
     def test_fileupload_getlist(self):
         file1 = tempfile.NamedTemporaryFile()
         file1.write('a' * (2 ** 23))
+        file1.seek(0)
 
         file2 = tempfile.NamedTemporaryFile()
         file2.write('a' * (2 * 2 ** 18))
+        file2.seek(0)
 
         file2a = tempfile.NamedTemporaryFile()
         file2a.write('a' * (5 * 2 ** 20))
+        file2a.seek(0)
 
         response = self.client.post('/file_uploads/getlist_count/', {
-            'file1': open(file1.name),
+            'file1': file1,
             'field1': u'test',
             'field2': u'test3',
             'field3': u'test5',
             'field4': u'test6',
             'field5': u'test7',
-            'file2': (open(file2.name), open(file2a.name))
+            'file2': (file2, file2a)
         })
         got = simplejson.loads(response.content)
 

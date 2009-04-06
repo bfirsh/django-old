@@ -39,6 +39,14 @@ class PostDeleteHandler(object):
 post_delete_test = PostDeleteHandler()
 
 __test__ = {'API_TESTS':"""
+
+# Save up the number of connected signals so that we can check at the end
+# that all the signals we register get properly unregistered (#9989)
+>>> pre_signals = (len(models.signals.pre_save.receivers),
+...                len(models.signals.post_save.receivers),
+...                len(models.signals.pre_delete.receivers),
+...                len(models.signals.post_delete.receivers))
+
 >>> models.signals.pre_save.connect(pre_save_test)
 >>> models.signals.post_save.connect(post_save_test)
 >>> models.signals.pre_delete.connect(pre_delete_test)
@@ -96,4 +104,14 @@ instance.id is None: False
 >>> models.signals.pre_delete.disconnect(pre_delete_test)
 >>> models.signals.post_save.disconnect(post_save_test)
 >>> models.signals.pre_save.disconnect(pre_save_test)
+
+# Check that all our signals got disconnected properly.
+>>> post_signals = (len(models.signals.pre_save.receivers),
+...                 len(models.signals.post_save.receivers),
+...                 len(models.signals.pre_delete.receivers),
+...                 len(models.signals.post_delete.receivers))
+
+>>> pre_signals == post_signals
+True
+
 """}

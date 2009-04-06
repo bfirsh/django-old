@@ -6,10 +6,26 @@ from django.conf import settings
 from django.db import connection, models
 
 class Item(models.Model):
-    name = models.CharField(max_length=10)
+    name = models.CharField(max_length=15)
     text = models.TextField(default="xyzzy")
     value = models.IntegerField()
     other_value = models.IntegerField(default=0)
+
+    def __unicode__(self):
+        return self.name
+
+class RelatedItem(models.Model):
+    item = models.ForeignKey(Item)
+
+class Child(models.Model):
+    name = models.CharField(max_length=10)
+    value = models.IntegerField()
+
+class Leaf(models.Model):
+    name = models.CharField(max_length=10)
+    child = models.ForeignKey(Child)
+    second_child = models.ForeignKey(Child, related_name="other", null=True)
+    value = models.IntegerField(default=42)
 
     def __unicode__(self):
         return self.name
@@ -39,9 +55,41 @@ True
 u"xyzzy"
 >>> len(connection.queries) == num + 2      # Effect of text lookup.
 True
+>>> obj.text
+u"xyzzy"
+>>> len(connection.queries) == num + 2
+True
 
 >>> settings.DEBUG = False
 
+Regression test for #10695. Make sure different instances don't inadvertently
+share data in the deferred descriptor objects.
+
+>>> i = Item.objects.create(name="no I'm first", value=37)
+>>> items = Item.objects.only('value').order_by('-value')
+>>> items[0].name
+u'first'
+>>> items[1].name
+u"no I'm first"
+
+>>> _ = RelatedItem.objects.create(item=i)
+>>> r = RelatedItem.objects.defer('item').get()
+>>> r.item_id == i.id
+True
+>>> r.item == i
+True
+
+Some further checks for select_related() and inherited model behaviour
+(regression for #10710).
+
+>>> c1 = Child.objects.create(name="c1", value=42)
+>>> obj = Leaf.objects.create(name="l1", child=c1)
+
+>>> obj = Leaf.objects.only("name", "child").select_related()[0]
+>>> obj.child.name
+u'c1'
+>>> Leaf.objects.select_related().only("child__name", "second_child__name")
+[<Leaf_Deferred_name_value: l1>]
+
 """
 }
-
