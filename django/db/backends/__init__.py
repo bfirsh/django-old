@@ -59,17 +59,17 @@ class BaseDatabaseWrapper(local):
     def _savepoint(self, sid):
         if not self.features.uses_savepoints:
             return
-        self.connection.cursor().execute(self.ops.savepoint_create_sql(sid))
+        self.cursor().execute(self.ops.savepoint_create_sql(sid))
 
     def _savepoint_rollback(self, sid):
         if not self.features.uses_savepoints:
             return
-        self.connection.cursor().execute(self.ops.savepoint_rollback_sql(sid))
+        self.cursor().execute(self.ops.savepoint_rollback_sql(sid))
 
     def _savepoint_commit(self, sid):
         if not self.features.uses_savepoints:
             return
-        self.connection.cursor().execute(self.ops.savepoint_commit_sql(sid))
+        self.cursor().execute(self.ops.savepoint_commit_sql(sid))
 
     def close(self):
         if self.connection is not None:
@@ -530,7 +530,10 @@ class BaseDatabaseIntrospection(object):
                         break # Only one AutoField is allowed per model, so don't bother continuing.
 
                 for f in model._meta.local_many_to_many:
-                    sequence_list.append({'table': f.m2m_db_table(), 'column': None})
+                    # If this is an m2m using an intermediate table,
+                    # we don't need to reset the sequence.
+                    if f.rel.through is None:
+                        sequence_list.append({'table': f.m2m_db_table(), 'column': None})
 
         return sequence_list
 

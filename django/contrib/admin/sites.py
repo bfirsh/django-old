@@ -1,6 +1,7 @@
 import re
 from django import http, template
 from django.contrib.admin import ModelAdmin
+from django.contrib.admin import actions
 from django.contrib.auth import authenticate, login
 from django.db.models.base import ModelBase
 from django.core.exceptions import ImproperlyConfigured
@@ -11,6 +12,10 @@ from django.utils.text import capfirst
 from django.utils.translation import ugettext_lazy, ugettext as _
 from django.views.decorators.cache import never_cache
 from django.conf import settings
+try:
+    set
+except NameError:
+    from sets import Set as set     # Python 2.3 fallback
 
 ERROR_MESSAGE = ugettext_lazy("Please enter a correct username and password. Note that both fields are case-sensitive.")
 LOGIN_FORM_KEY = 'this_is_the_login_form'
@@ -44,8 +49,8 @@ class AdminSite(object):
         else:
             name += '_'
         self.name = name
-
-        self.actions = []
+        self._actions = {'delete_selected': actions.delete_selected}
+        self._global_actions = self._actions.copy()
 
     def register(self, model_or_iterable, admin_class=None, **options):
         """
@@ -102,10 +107,33 @@ class AdminSite(object):
                 raise NotRegistered('The model %s is not registered' % model.__name__)
             del self._registry[model]
 
-    def add_action(self, action):
-        if not callable(action):
-            raise TypeError("You can only register callable actions through an admin site")
-        self.actions.append(action)
+    def add_action(self, action, name=None):
+        """
+        Register an action to be available globally.
+        """
+        name = name or action.__name__
+        self._actions[name] = action
+        self._global_actions[name] = action
+        
+    def disable_action(self, name):
+        """
+        Disable a globally-registered action. Raises KeyError for invalid names.
+        """
+        del self._actions[name]
+        
+    def get_action(self, name):
+        """
+        Explicitally get a registered global action wheather it's enabled or
+        not. Raises KeyError for invalid names.
+        """
+        return self._global_actions[name]
+    
+    def actions(self):
+        """
+        Get all the enabled actions as an iterable of (name, func).
+        """
+        return self._actions.iteritems()
+    actions = property(actions)
 
     def has_permission(self, request):
         """
@@ -146,7 +174,7 @@ class AdminSite(object):
 
                     urls = super(MyAdminSite, self).get_urls()
                     urls += patterns('',
-                        url(r'^my_view/$', self.protected_view(some_view))
+                        url(r'^my_view/$', self.admin_view(some_view))
                     )
                     return urls
         """
@@ -300,11 +328,7 @@ class AdminSite(object):
             has_module_perms = user.has_module_perms(app_label)
 
             if has_module_perms:
-                perms = {
-                    'add': model_admin.has_add_permission(request),
-                    'change': model_admin.has_change_permission(request),
-                    'delete': model_admin.has_delete_permission(request),
-                }
+                perms = model_admin.get_model_perms(request)
 
                 # Check whether user has any perm for this module.
                 # If so, add the module to the model_list.
@@ -363,11 +387,8 @@ class AdminSite(object):
         for model, model_admin in self._registry.items():
             if app_label == model._meta.app_label:
                 if has_module_perms:
-                    perms = {
-                        'add': user.has_perm("%s.%s" % (app_label, model._meta.get_add_permission())),
-                        'change': user.has_perm("%s.%s" % (app_label, model._meta.get_change_permission())),
-                        'delete': user.has_perm("%s.%s" % (app_label, model._meta.get_delete_permission())),
-                    }
+                    perms = model_admin.get_model_perms(request)
+
                     # Check whether user has any perm for this module.
                     # If so, add the module to the model_list.
                     if True in perms.values():

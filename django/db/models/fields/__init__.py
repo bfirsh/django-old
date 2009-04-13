@@ -370,6 +370,7 @@ class AutoField(Field):
         return None
 
 class BooleanField(Field):
+    empty_strings_allowed = False
     def __init__(self, *args, **kwargs):
         kwargs['blank'] = True
         if 'default' not in kwargs and not kwargs.get('null'):
@@ -401,7 +402,13 @@ class BooleanField(Field):
         return bool(value)
 
     def formfield(self, **kwargs):
-        defaults = {'form_class': forms.BooleanField}
+        # Unlike most fields, BooleanField figures out include_blank from
+        # self.null instead of self.blank.
+        if self.choices:
+            include_blank = self.null or not (self.has_default() or 'initial' in kwargs)
+            defaults = {'choices': self.get_choices(include_blank=include_blank)}
+        else:
+            defaults = {'form_class': forms.BooleanField}
         defaults.update(kwargs)
         return super(BooleanField, self).formfield(**defaults)
 
@@ -498,10 +505,10 @@ class DateField(Field):
                 curry(cls._get_next_or_previous_by_FIELD, field=self, is_next=False))
 
     def get_db_prep_lookup(self, lookup_type, value):
-        # For "__month", "__day", and "__week_day" lookups, convert the value 
-        # to a string so the database backend always sees a consistent type.
+        # For "__month", "__day", and "__week_day" lookups, convert the value
+        # to an int so the database backend always sees a consistent type.
         if lookup_type in ('month', 'day', 'week_day'):
-            return [force_unicode(value)]
+            return [int(value)]
         return super(DateField, self).get_db_prep_lookup(lookup_type, value)
 
     def get_db_prep_value(self, value):
@@ -618,9 +625,12 @@ class DecimalField(Field):
         from django.db.backends import util
         return util.format_number(value, self.max_digits, self.decimal_places)
 
-    def get_db_prep_value(self, value):
+    def get_db_prep_save(self, value):
         return connection.ops.value_to_db_decimal(self.to_python(value),
                 self.max_digits, self.decimal_places)
+
+    def get_db_prep_value(self, value):
+        return self.to_python(value)
 
     def formfield(self, **kwargs):
         defaults = {

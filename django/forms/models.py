@@ -276,7 +276,7 @@ class BaseModelForm(BaseForm):
                 # using it in a lookup.
                 if isinstance(self.fields[field_name], ModelChoiceField):
                     lookup_value =  lookup_value.pk
-                lookup_kwargs[field_name] = lookup_value
+                lookup_kwargs[str(field_name)] = lookup_value
 
             qs = self.instance.__class__._default_manager.filter(**lookup_kwargs)
 
@@ -436,7 +436,7 @@ class BaseModelFormSet(BaseFormSet):
                     self.deleted_objects.append(obj)
                     obj.delete()
                     continue
-            if form.changed_data:
+            if form.has_changed():
                 self.changed_objects.append((obj, form.changed_data))
                 saved_instances.append(self.save_existing(form, obj, commit=commit))
                 if not commit:

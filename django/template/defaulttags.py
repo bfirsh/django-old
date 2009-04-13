@@ -125,6 +125,7 @@ class ForNode(Node):
             values = list(values)
         len_values = len(values)
         if len_values < 1:
+            context.pop()
             return self.nodelist_empty.render(context)
         nodelist = NodeList()
         if self.is_reversed:
@@ -186,10 +187,7 @@ class IfChangedNode(Node):
         if compare_to != self._last_seen:
             firstloop = (self._last_seen == None)
             self._last_seen = compare_to
-            context.push()
-            context['ifchanged'] = {'firstloop': firstloop}
             content = self.nodelist_true.render(context)
-            context.pop()
             return content
         elif self.nodelist_false:
             return self.nodelist_false.render(context)
@@ -1102,7 +1100,7 @@ def url(parser, token):
 
     The URL will look like ``/clients/client/123/``.
     """
-    bits = token.contents.split(' ')
+    bits = token.split_contents()
     if len(bits) < 2:
         raise TemplateSyntaxError("'%s' takes at least one argument"
                                   " (path to a view)" % bits[0])

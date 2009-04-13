@@ -1,4 +1,6 @@
 # coding: utf-8
+import pickle
+
 from django.db import models
 from django.conf import settings
 
@@ -57,6 +59,12 @@ class Clues(models.Model):
     ID = models.AutoField(primary_key=True)
     EntryID = models.ForeignKey(Entries, verbose_name='Entry', db_column = 'Entry ID')
     Clue = models.CharField(max_length=150)
+
+class HardbackBook(Book):
+    weight = models.FloatField()
+
+    def __unicode__(self):
+        return "%s (hardback): %s" % (self.name, self.weight)
 
 __test__ = {'API_TESTS': """
 >>> from django.core import management
@@ -137,17 +145,17 @@ __test__ = {'API_TESTS': """
 >>> Book.objects.all().aggregate(num_authors=Count('foo'))
 Traceback (most recent call last):
 ...
-FieldError: Cannot resolve keyword 'foo' into field. Choices are: authors, contact, id, isbn, name, pages, price, pubdate, publisher, rating, store
+FieldError: Cannot resolve keyword 'foo' into field. Choices are: authors, contact, hardbackbook, id, isbn, name, pages, price, pubdate, publisher, rating, store
 
 >>> Book.objects.all().annotate(num_authors=Count('foo'))
 Traceback (most recent call last):
 ...
-FieldError: Cannot resolve keyword 'foo' into field. Choices are: authors, contact, id, isbn, name, pages, price, pubdate, publisher, rating, store
+FieldError: Cannot resolve keyword 'foo' into field. Choices are: authors, contact, hardbackbook, id, isbn, name, pages, price, pubdate, publisher, rating, store
 
 >>> Book.objects.all().annotate(num_authors=Count('authors__id')).aggregate(Max('foo'))
 Traceback (most recent call last):
 ...
-FieldError: Cannot resolve keyword 'foo' into field. Choices are: authors, contact, id, isbn, name, pages, price, pubdate, publisher, rating, store, num_authors
+FieldError: Cannot resolve keyword 'foo' into field. Choices are: authors, contact, hardbackbook, id, isbn, name, pages, price, pubdate, publisher, rating, store, num_authors
 
 # Old-style count aggregations can be mixed with new-style
 >>> Book.objects.annotate(num_authors=Count('authors')).count()
@@ -236,6 +244,19 @@ FieldError: Cannot resolve keyword 'foo' into field. Choices are: authors, conta
 >>> Book.objects.filter(id__in=ids)
 [<Book: Python Web Development with Django>]
 
+# Regression for #10197 -- Queries with aggregates can be pickled.
+# First check that pickling is possible at all. No crash = success
+>>> qs = Book.objects.annotate(num_authors=Count('authors'))
+>>> out = pickle.dumps(qs)
+
+# Then check that the round trip works.
+>>> query = qs.query.as_sql()[0]
+>>> select_fields = qs.query.select_fields
+>>> query2 = pickle.loads(pickle.dumps(qs))
+>>> query2.query.as_sql()[0] == query
+True
+>>> query2.query.select_fields = select_fields
+
 # Regression for #10199 - Aggregate calls clone the original query so the original query can still be used
 >>> books = Book.objects.all()
 >>> _ = books.aggregate(Avg('authors__age'))
@@ -276,6 +297,27 @@ FieldError: Cannot resolve keyword 'foo' into field. Choices are: authors, conta
 
 >>> publishers
 [<Publisher: Apress>, <Publisher: Sams>]
+
+
+# Regression for 10666 - inherited fields work with annotations and aggregations
+>>> HardbackBook.objects.aggregate(n_pages=Sum('book_ptr__pages'))
+{'n_pages': 2078}
+
+>>> HardbackBook.objects.aggregate(n_pages=Sum('pages'))
+{'n_pages': 2078}
+
+>>> HardbackBook.objects.annotate(n_authors=Count('book_ptr__authors')).values('name','n_authors')
+[{'n_authors': 2, 'name': u'Artificial Intelligence: A Modern Approach'}, {'n_authors': 1, 'name': u'Paradigms of Artificial Intelligence Programming: Case Studies in Common Lisp'}]
+
+>>> HardbackBook.objects.annotate(n_authors=Count('authors')).values('name','n_authors')
+[{'n_authors': 2, 'name': u'Artificial Intelligence: A Modern Approach'}, {'n_authors': 1, 'name': u'Paradigms of Artificial Intelligence Programming: Case Studies in Common Lisp'}]
+
+# Regression for #10766 - Shouldn't be able to reference an aggregate fields in an an aggregate() call.
+>>> Book.objects.all().annotate(mean_age=Avg('authors__age')).annotate(Avg('mean_age'))
+Traceback (most recent call last):
+...
+FieldError: Cannot compute Avg('mean_age'): 'mean_age' is an aggregate
+
 """
 }
 

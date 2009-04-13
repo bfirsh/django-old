@@ -69,6 +69,9 @@ class SomeException(Exception):
 
 class SomeOtherException(Exception):
     pass
+    
+class ContextStackException(Exception):
+    pass
 
 class SomeClass:
     def __init__(self):
@@ -231,6 +234,9 @@ class Templates(unittest.TestCase):
                 try:
                     test_template = loader.get_template(name)
                     output = self.render(test_template, vals)
+                except ContextStackException:
+                    failures.append("Template test (TEMPLATE_STRING_IF_INVALID='%s'): %s -- FAILED. Context stack was left imbalanced" % (invalid_str, name))
+                    continue
                 except Exception:
                     exc_type, exc_value, exc_tb = sys.exc_info()
                     if exc_type != result:
@@ -256,7 +262,12 @@ class Templates(unittest.TestCase):
             ('-'*70, ("\n%s\n" % ('-'*70)).join(failures)))
 
     def render(self, test_template, vals):
-        return test_template.render(template.Context(vals[1]))
+        context = template.Context(vals[1])
+        before_stack_size = len(context.dicts)
+        output = test_template.render(context)
+        if len(context.dicts) != before_stack_size:
+            raise ContextStackException
+        return output
 
     def get_template_tests(self):
         # SYNTAX --
@@ -840,10 +851,14 @@ class Templates(unittest.TestCase):
             'i18n15': ('{{ absent|default:_("Password") }}', {'LANGUAGE_CODE': 'de', 'absent': ""}, 'Passwort'),
             'i18n16': ('{{ _("<") }}', {'LANGUAGE_CODE': 'de'}, '<'),
 
-            # Escaping inside blocktrans works as if it was directly in the
+            # Escaping inside blocktrans and trans works as if it was directly in the
             # template.
             'i18n17': ('{% load i18n %}{% blocktrans with anton|escape as berta %}{{ berta }}{% endblocktrans %}', {'anton': 'α & β'}, u'α &amp; β'),
             'i18n18': ('{% load i18n %}{% blocktrans with anton|force_escape as berta %}{{ berta }}{% endblocktrans %}', {'anton': 'α & β'}, u'α &amp; β'),
+            'i18n19': ('{% load i18n %}{% blocktrans %}{{ andrew }}{% endblocktrans %}', {'andrew': 'a & b'}, u'a &amp; b'),
+            'i18n20': ('{% load i18n %}{% trans andrew %}', {'andrew': 'a & b'}, u'a &amp; b'),
+            'i18n21': ('{% load i18n %}{% blocktrans %}{{ andrew }}{% endblocktrans %}', {'andrew': mark_safe('a & b')}, u'a & b'),
+            'i18n22': ('{% load i18n %}{% trans andrew %}', {'andrew': mark_safe('a & b')}, u'a & b'),
 
             ### HANDLING OF TEMPLATE_STRING_IF_INVALID ###################################
 
@@ -963,6 +978,7 @@ class Templates(unittest.TestCase):
             'url07': (u'{% url regressiontests.templates.views.client2 tag=v %}', {'v': u'Ω'}, '/url_tag/%D0%AE%D0%BD%D0%B8%D0%BA%D0%BE%D0%B4/%CE%A9/'),
             'url08': (u'{% url метка_оператора v %}', {'v': 'Ω'}, '/url_tag/%D0%AE%D0%BD%D0%B8%D0%BA%D0%BE%D0%B4/%CE%A9/'),
             'url09': (u'{% url метка_оператора_2 tag=v %}', {'v': 'Ω'}, '/url_tag/%D0%AE%D0%BD%D0%B8%D0%BA%D0%BE%D0%B4/%CE%A9/'),
+            'url10': ('{% url regressiontests.templates.views.client_action id=client.id,action="two words" %}', {'client': {'id': 1}}, '/url_tag/client/1/two%20words/'),
 
             # Failures
             'url-fail01': ('{% url %}', {}, template.TemplateSyntaxError),
