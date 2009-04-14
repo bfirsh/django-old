@@ -211,10 +211,6 @@ class ChangeList(object):
                         qs = qs.select_related()
                         break
 
-        # Set ordering.
-        if self.order_field:
-            qs = qs.order_by('%s%s' % ((self.order_type == 'desc' and '-' or ''), self.order_field))
-
         # Apply keyword searches.
         def construct_search(field_name):
             if field_name.startswith('^'):
@@ -225,19 +221,29 @@ class ChangeList(object):
                 return "%s__search" % field_name[1:]
             else:
                 return "%s__icontains" % field_name
-
-        if self.search_fields and self.query:
-            for bit in self.query.split():
-                or_queries = [models.Q(**{construct_search(str(field_name)): bit}) for field_name in self.search_fields]
-                other_qs = QuerySet(self.model)
-                other_qs.dup_select_related(qs)
-                other_qs = other_qs.filter(reduce(operator.or_, or_queries))
-                qs = qs & other_qs
-            for field_name in self.search_fields:
-                if '__' in field_name:
-                    qs = qs.distinct()
-                    break
-
+        if self.query:
+            if self.search_fields:
+                for bit in self.query.split():
+                    or_queries = [models.Q(**{construct_search(str(field_name)): bit}) for field_name in self.search_fields]
+                    other_qs = QuerySet(self.model)
+                    other_qs.dup_select_related(qs)
+                    other_qs = other_qs.filter(reduce(operator.or_, or_queries))
+                    qs = qs & other_qs
+                for field_name in self.search_fields:
+                    if '__' in field_name:
+                        qs = qs.distinct()
+                        break
+            elif self.opts.search_fields:
+                qs = qs.search(self.query)
+                # Only order by relevance if order hasn't been set manually
+                if ORDER_VAR not in self.params:
+                    self.order_field = 'search__relevance'
+                    self.order_type = 'desc'
+        
+        # Set ordering.
+        if self.order_field:
+            qs = qs.order_by('%s%s' % ((self.order_type == 'desc' and '-' or ''), self.order_field))
+        
         return qs
 
     def url_for_result(self, result):
