@@ -26,6 +26,9 @@ __test__ = {'API_TESTS': """
 >>> Article.objects.search('django').search('perfectionists')
 [<Article: Django 1.0 released!>]
 
+>>> Article.objects.search('beta').dates('pub_date', 'month')
+[datetime.datetime(2009, 2, 1, 0, 0), datetime.datetime(2009, 3, 1, 0, 0)]
+
 >>> Article.objects.search('django pycon')
 [<Article: Django 1.1 alpha 1 released>, <Article: Django 1.1 beta released, wombat>]
 

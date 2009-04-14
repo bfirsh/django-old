@@ -180,9 +180,6 @@ class QuerySet(object):
         max_depth = self.query.max_depth
 
         extra_select = self.query.extra_select.keys()
-        extra_start = 0
-        if self.query.search_queries:
-            extra_start = 1
         aggregate_select = self.query.aggregate_select.keys()
 
         only_load = self.query.get_loaded_field_names()
@@ -190,7 +187,7 @@ class QuerySet(object):
             fields = self.model._meta.fields
             pk_idx = self.model._meta.pk_index()
 
-        index_start = extra_start + len(extra_select)
+        index_start = len(extra_select)
         aggregate_start = index_start + len(self.model._meta.fields)
 
         load_fields = only_load.get(self.model)
@@ -221,12 +218,9 @@ class QuerySet(object):
                 else:
                     # Omit aggregates in object creation.
                     obj = self.model(*row[index_start:aggregate_start])
-                
-            if self.query.search_queries:
-                setattr(obj, "search__relevance", row[0])
             
             for i, k in enumerate(extra_select):
-                setattr(obj, k, row[i+extra_start])
+                setattr(obj, k, row[i])
 
             # Add the aggregates to the model
             for i, aggregate in enumerate(aggregate_select):
@@ -602,6 +596,7 @@ class QuerySet(object):
         """
         obj = self._clone()
         obj.query.search_queries.append(query)
+        obj.query.add_search_relevance()
         return obj
         
 

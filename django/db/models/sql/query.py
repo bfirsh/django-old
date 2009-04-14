@@ -289,10 +289,7 @@ class BaseQuery(object):
                     row = self.resolve_columns(row, fields)
 
                 if self.aggregate_select:
-                    search_count = 0
-                    if self.search_queries:
-                        search_count = 1
-                    aggregate_start = search_count + len(self.extra_select.keys()) + len(self.select)
+                    aggregate_start = len(self.extra_select.keys()) + len(self.select)
                     aggregate_end = aggregate_start + len(self.aggregate_select)
                     row = tuple(row[:aggregate_start]) + tuple([
                         self.resolve_aggregate(value, aggregate)
@@ -401,9 +398,6 @@ class BaseQuery(object):
         params = []
         for val in self.extra_select.itervalues():
             params.extend(val[1])
-        if self.search_queries:
-            params.append(self.connection.ops.fulltext_prepare_queries(
-                            self.search_queries))
 
         result = ['SELECT']
         if self.distinct:
@@ -699,13 +693,6 @@ class BaseQuery(object):
         qn2 = self.connection.ops.quote_name
         result = ['(%s) AS %s' % (col[0], qn2(alias)) for alias, col in self.extra_select.iteritems()]
         aliases = set(self.extra_select.keys())
-        if self.search_queries:
-            result.append('(%s) AS %s' % 
-                (self.connection.ops.fulltext_relevance_sql(
-                        self.model._meta.search_fields,
-                        self.model._meta.db_table),
-                 qn2('search__relevance')))
-            aliases.add('search__relevance')
         if with_aliases:
             col_aliases = aliases.copy()
         else:
@@ -945,7 +932,7 @@ class BaseQuery(object):
                 group_by.append((field, []))
                 continue
             col, order = get_order_dir(field, asc)
-            if col == 'search__relevance' or col in self.aggregate_select:
+            if col in self.aggregate_select:
                 result.append('%s %s' % (col, order))
                 continue
             if '.' in field:
@@ -2178,6 +2165,18 @@ class BaseQuery(object):
         if order_by:
             self.extra_order_by = order_by
 
+    def add_search_relevance(self):
+        # This is hackish, but less hackish than checking for search queries
+        # everywhere
+        try:
+            del self.extra_select['search__relevance']
+        except KeyError:
+            pass
+        self.add_extra(
+            select={'search__relevance': self.connection.ops.fulltext_relevance_sql(self.model._meta.search_fields, self.model._meta.db_table)},
+            select_params=[self.connection.ops.fulltext_prepare_queries(self.search_queries)],
+            where=None, params=None, tables=None, order_by=None)
+        
     def clear_deferred_loading(self):
         """
         Remove any fields from the deferred loading set.
