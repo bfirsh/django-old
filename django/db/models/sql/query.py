@@ -2166,12 +2166,6 @@ class BaseQuery(object):
             self.extra_order_by = order_by
 
     def add_search_relevance(self):
-        # This is hackish, but less hackish than checking for search queries
-        # everywhere
-        try:
-            del self.extra_select['search__relevance']
-        except KeyError:
-            pass
         self.add_extra(
             select={'search__relevance': self.connection.ops.fulltext_relevance_sql(self.model._meta.search_fields, self.model._meta.db_table)},
             select_params=[self.connection.ops.fulltext_prepare_queries(self.search_queries)],
