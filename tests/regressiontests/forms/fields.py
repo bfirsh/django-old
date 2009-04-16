@@ -745,6 +745,27 @@ ValidationError: [u'Enter a valid e-mail address.']
 Traceback (most recent call last):
 ...
 ValidationError: [u'Enter a valid e-mail address.']
+>>> f.clean('example@invalid-.com')
+Traceback (most recent call last):
+...
+ValidationError: [u'Enter a valid e-mail address.']
+>>> f.clean('example@-invalid.com')
+Traceback (most recent call last):
+...
+ValidationError: [u'Enter a valid e-mail address.']
+>>> f.clean('example@inv-.alid-.com')
+Traceback (most recent call last):
+...
+ValidationError: [u'Enter a valid e-mail address.']
+>>> f.clean('example@inv-.-alid.com')
+Traceback (most recent call last):
+...
+ValidationError: [u'Enter a valid e-mail address.']
+>>> f.clean('example@valid-----hyphens.com')
+u'example@valid-----hyphens.com'
+
+>>> f.clean('example@valid-with-hyphens.com')
+u'example@valid-with-hyphens.com'
 
 >>> f = EmailField(required=False)
 >>> f.clean('')
@@ -879,6 +900,10 @@ u'http://example.com/'
 u'http://www.example.com/'
 >>> f.clean('http://www.example.com:8000/test')
 u'http://www.example.com:8000/test'
+>>> f.clean('valid-with-hyphens.com')
+u'http://valid-with-hyphens.com/'
+>>> f.clean('subdomain.domain.com')
+u'http://subdomain.domain.com/'
 >>> f.clean('http://200.8.9.10')
 u'http://200.8.9.10/'
 >>> f.clean('http://200.8.9.10:8000/test')
@@ -903,6 +928,24 @@ ValidationError: [u'Enter a valid URL.']
 Traceback (most recent call last):
 ...
 ValidationError: [u'Enter a valid URL.']
+>>> f.clean('http://invalid-.com')
+Traceback (most recent call last):
+...
+ValidationError: [u'Enter a valid URL.']
+>>> f.clean('http://-invalid.com')
+Traceback (most recent call last):
+...
+ValidationError: [u'Enter a valid URL.']
+>>> f.clean('http://inv-.alid-.com')
+Traceback (most recent call last):
+...
+ValidationError: [u'Enter a valid URL.']
+>>> f.clean('http://inv-.-alid.com')
+Traceback (most recent call last):
+...
+ValidationError: [u'Enter a valid URL.']
+>>> f.clean('http://valid-----hyphens.com')
+u'http://valid-----hyphens.com/'
 
 >>> f = URLField(required=False)
 >>> f.clean('')
@@ -1104,7 +1147,7 @@ ValidationError: [u'Select a valid choice. 6 is not one of the available choices
 
 # TypedChoiceField ############################################################
 
-# TypedChoiceField is just like ChoiceField, except that coerced types will 
+# TypedChoiceField is just like ChoiceField, except that coerced types will
 # be returned:
 >>> f = TypedChoiceField(choices=[(1, "+1"), (-1, "-1")], coerce=int)
 >>> f.clean('1')
@@ -1122,7 +1165,7 @@ ValidationError: [u'Select a valid choice. 2 is not one of the available choices
 
 # This can also cause weirdness: be careful (bool(-1) == True, remember)
 >>> f.coerce = bool
->>> f.clean('-1') 
+>>> f.clean('-1')
 True
 
 # Even more weirdness: if you have a valid choice but your coercion function
