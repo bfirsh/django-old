@@ -1,5 +1,4 @@
 import sys, unittest
-from django.test.simple import reorder_suite, TestCase
 from django.utils.importlib import import_module
 
 def geo_suite():
@@ -35,7 +34,7 @@ def geo_suite():
 
     if HAS_GDAL:
         # These tests require GDAL.
-        test_suite_names.append('test_spatialrefsys')
+        test_suite_names.extend(['test_spatialrefsys', 'test_geoforms'])
         test_apps.append('layermap')
 
         # Adding the GDAL tests.
@@ -120,7 +119,7 @@ def run_tests(test_labels, verbosity=1, interactive=True, extra_tests=[], suite=
     from django.conf import settings
     from django.db import connection
     from django.db.models import get_app, get_apps
-    from django.test.simple import build_suite, build_test
+    from django.test.simple import build_suite, build_test, reorder_suite, TestCase
     from django.test.utils import setup_test_environment, teardown_test_environment
 
     # The `create_test_spatial_db` routine abstracts away all the steps needed
