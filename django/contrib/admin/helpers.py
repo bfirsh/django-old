@@ -137,7 +137,7 @@ class InlineAdminForm(AdminForm):
         self.formset = formset
         self.original = original
         if original is not None:
-            self.original.content_type_id = ContentType.objects.get_for_model(original).pk
+            self.original_content_type_id = ContentType.objects.get_for_model(original).pk
         self.show_url = original and hasattr(original, 'get_absolute_url')
         super(InlineAdminForm, self).__init__(form, fieldsets, prepopulated_fields)
 
@@ -145,9 +145,14 @@ class InlineAdminForm(AdminForm):
         for name, options in self.fieldsets:
             yield InlineFieldset(self.formset, self.form, name, **options)
 
+    def has_auto_field(self):
+        return self.form._meta.model._meta.has_auto_field
+
     def field_count(self):
         # tabular.html uses this function for colspan value.
-        num_of_fields = 1 # always has at least one field
+        num_of_fields = 0
+        if self.has_auto_field():
+            num_of_fields += 1
         num_of_fields += len(self.fieldsets[0][1]["fields"])
         if self.formset.can_order:
             num_of_fields += 1
