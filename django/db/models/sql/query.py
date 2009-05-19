@@ -569,12 +569,9 @@ class BaseQuery(object):
             if self.extra_where and rhs.extra_where:
                 raise ValueError("When merging querysets using 'or', you "
                         "cannot have extra(where=...) on both sides.")
-<<<<<<< HEAD:django/db/models/sql/query.py
             if self.search_queries and rhs.search_queries:
                 raise ValueError("When merging querysets using 'or', you "
                         "cannot have search(...) on both sides.")
-        self.extra_select.update(rhs.extra_select)
-=======
         self.extra.update(rhs.extra)
         extra_select_mask = set()
         if self.extra_select_mask is not None:
@@ -583,7 +580,6 @@ class BaseQuery(object):
             extra_select_mask.update(rhs.extra_select_mask)
         if extra_select_mask:
             self.set_extra_mask(extra_select_mask)
->>>>>>> bd3fdc9d687963c4a93b40d7cb2d0b62ab512160:django/db/models/sql/query.py
         self.extra_tables += rhs.extra_tables
         self.extra_where += rhs.extra_where
         self.extra_params += rhs.extra_params
@@ -2257,7 +2253,6 @@ class BaseQuery(object):
         """
         target[model] = set([f.name for f in fields])
 
-<<<<<<< HEAD:django/db/models/sql/query.py
     def trim_extra_select(self, names):
         """
         Removes any aliases in the extra_select dictionary that aren't in
@@ -2269,8 +2264,6 @@ class BaseQuery(object):
         for key in set(self.extra_select).difference(set(names)):
             del self.extra_select[key]
 
-=======
->>>>>>> bd3fdc9d687963c4a93b40d7cb2d0b62ab512160:django/db/models/sql/query.py
     def set_aggregate_mask(self, names):
         "Set the mask of aggregates that will actually be returned by the SELECT"
         if names is None:
