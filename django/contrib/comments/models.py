@@ -53,7 +53,7 @@ class Comment(BaseCommentAbstractModel):
     user_email  = models.EmailField(_("user's email address"), blank=True)
     user_url    = models.URLField(_("user's URL"), blank=True)
 
-    comment = models.TextField(_('comment'), max_length=COMMENT_MAX_LENGTH)
+    comment = models.TextField(_('comment'), max_length=COMMENT_MAX_LENGTH, search_index=True)
 
     # Metadata about the comment
     submit_date = models.DateTimeField(_('date/time submitted'), default=None)
