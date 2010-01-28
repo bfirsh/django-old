@@ -9,7 +9,9 @@ from django.utils.encoding import force_unicode, iri_to_uri, smart_unicode
 from django.utils.html import escape
 
 def add_domain(domain, url):
-    if not (url.startswith('http://') or url.startswith('https://')):
+    if not (url.startswith('http://')
+            or url.startswith('https://')
+            or url.startswith('mailto:')):
         # 'url' must already be ASCII and URL-quoted, so no need for encoding
         # conversions here.
         url = iri_to_uri(u'http://%s%s' % (domain, url))
