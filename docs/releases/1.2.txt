@@ -386,6 +386,84 @@ approach. Old style function-based test runners will still work, but
 should be updated to use the new :ref:`class-based runners
 <topics-testing-test_runner>`.
 
+``Feed`` in ``django.contrib.syndication.feeds``
+------------------------------------------------
+
+The ``Feed`` class in ``syndication.feeds`` has been replaced by 
+the ``Feed`` class in ``syndication.views``, and will be removed in Django 1.4.
+
+The new class has an almost identical API, but allows instances to be used as 
+views. For example, consider the use of the old framework in the following 
+:ref:`URLconf <topics-http-urls>`::
+
+    from django.conf.urls.defaults import *
+    from myproject.feeds import LatestEntries, LatestEntriesByCategory
+
+    feeds = {
+        'latest': LatestEntries,
+        'categories': LatestEntriesByCategory,
+    }
+
+    urlpatterns = patterns('',
+        # ...
+        (r'^feeds/(?P<url>.*)/$', 'django.contrib.syndication.views.feed',
+            {'feed_dict': feeds}),
+        # ...
+    )
+
+This should be replaced by::
+
+    from django.conf.urls.defaults import *
+    from myproject.feeds import LatestEntries, LatestEntriesByCategory
+
+    urlpatterns = patterns('',
+        # ...
+        (r'^feeds/latest/$', LatestEntries()),
+        (r'^feeds/categories/(?P<category_id>\d+)/$', LatestEntriesByCategory()),
+        # ...
+    )
+
+If you used the ``feed()`` view, the ``LatestEntries`` class would not need to 
+be modified apart from subclassing the new ``Feed`` class. However, 
+``LatestEntriesByCategory`` used the ``get_object()`` method with the ``bits`` 
+argument to specify a specific category to show. Much like a view, the 
+``get_object()`` method now takes a ``request`` and arguments from the URL, so 
+it would look like this::
+
+    from django.contrib.syndication.views import Feed
+    from django.shortcuts import get_object_or_404
+    from myproject.models import Category
+
+    class LatestEntriesByCategory(Feed):
+        def get_object(self, request, category_id):
+            return get_object_or_404(Category, id=category_id)
+        
+        # ...
+
+Additionally, the ``get_feed()`` method on ``Feed`` classes now take different 
+arguments, which may impact you if you use the ``Feed`` classes directly.
+Instead of just taking an optional ``url`` argument, it now takes two arguments: 
+the object returned by its own ``get_object()`` method, and the current 
+``request`` object.
+
+To take into account ``Feed`` classes not being initialized for each 
+request, the ``__init__()`` method now takes no arguments by default.
+Previously it would have taken the ``slug`` from the URL and the ``request`` 
+object.
+
+In previous versions of Django, the ``feed_copyright()`` method was incorrectly  
+documented as ``copyright()``. Change any ``copyright()`` methods you have on 
+your ``Feed`` classes to ``feed_copyright()``.
+
+In accordance with `RSS best practices`_, RSS feeds will now include an 
+``atom:link`` element. You may need to update your tests to take this into 
+account.
+
+For more information, see the full :ref:`syndication framework documentation 
+<ref-contrib-syndication>`.
+
+.. _RSS best practices: http://www.rssboard.org/rss-profile
+
 What's new in Django 1.2
 ========================
 
@@ -549,3 +627,23 @@ reusable, encapsulated validation behavior. Note, however, that
 validation must still be performed explicitly. Simply invoking a model
 instance's ``save()`` method will not perform any validation of the
 instance's data.
+
+Syndication feeds as views
+--------------------------
+
+:ref:`Syndication feeds <ref-contrib-syndication>` can now be used directly as 
+views in your :ref:`URLconf <topics-http-urls>`. Previously, all the feeds on a 
+site had to live beneath a single URL, which produced ugly, unnatural URLs.
+
+For example, suppose you listed blog posts for the "django" tag under 
+``/blog/django/``. In previous versions of Django, a feed for those posts would 
+have had to be something like ``/feeds/blog-tag/django/``. In Django 1.2, it 
+can simply be ``/blog/django/feed/``.
+
+Like any other view, feeds are now passed a ``request`` object, so you can 
+do user based access control amongst other things.
+
+Also, you no longer need to create templates for your feed item titles and 
+descriptions. You can set these with the ``item_title()`` and 
+``item_description()`` methods.
+
