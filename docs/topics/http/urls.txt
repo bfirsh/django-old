@@ -631,6 +631,26 @@ The style you use is up to you.
 Note that if you use this technique -- passing objects rather than strings --
 the view prefix (as explained in "The view prefix" above) will have no effect.
 
+Passing classes as views
+========================
+
+If you write your views as classes with a ``__call__()`` method, they may not be 
+thread safe if you pass them as instances to your URLconf. To ensure your 
+class-based views work correctly, you may pass a class which will be 
+instantiated on each request before being called::
+
+    urlpatterns = patterns('',
+        (r'^contact/$', 'mysite.views.ContactView'),
+    )
+
+You may also pass classes directly::
+
+    from mysite.views import ContactView
+    
+    urlpatterns = patterns('',
+        (r'^contact/$', ContactView),
+    )
+
 .. _naming-url-patterns:
 
 Naming URL patterns

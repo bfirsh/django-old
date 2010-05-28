@@ -81,6 +81,9 @@ def get_mod_func(callback):
     return callback[:dot], callback[dot+1:]
 
 class RegexURLPattern(object):
+    """
+    Represents a single pattern in a URLconf.
+    """
     def __init__(self, regex, callback, default_args=None, name=None):
         # regex is a string representing a regular expression.
         # callback is either a string like 'foo.views.news.stories.story_detail'
@@ -119,8 +122,12 @@ class RegexURLPattern(object):
                 args = match.groups()
             # In both cases, pass any extra_kwargs as **kwargs.
             kwargs.update(self.default_args)
-
-            return self.callback, args, kwargs
+            
+            # Instantiate classes each time the pattern is resolved
+            callback = self.callback
+            if isinstance(callback, type):
+                callback = callback()
+            return callback, args, kwargs
 
     def _get_callback(self):
         if self._callback is not None:
@@ -137,6 +144,9 @@ class RegexURLPattern(object):
     callback = property(_get_callback)
 
 class RegexURLResolver(object):
+    """
+    Resolves and reverses URLs in a URLconf.
+    """
     def __init__(self, regex, urlconf_name, default_kwargs=None, app_name=None, namespace=None):
         # regex is a string representing a regular expression.
         # urlconf_name is a string representing the module containing URLconfs.
