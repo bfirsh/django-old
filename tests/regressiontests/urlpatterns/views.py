@@ -11,12 +11,14 @@ class OneTimeView(object):
     A view that will 404 the second time it is called.
     """
     
-    has_been_called = False
+    def __init__(self, *args, **kwargs):
+        super(OneTimeView, self).__init__(*args, **kwargs)
+        self.call_count = 0
     
     def __call__(self, request):
-        if self.has_been_called:
+        if self.call_count > 0:
             raise Http404
-        self.has_been_called = True
+        self.call_count += 1
         return HttpResponse(self.__class__.__name__)
 
 
